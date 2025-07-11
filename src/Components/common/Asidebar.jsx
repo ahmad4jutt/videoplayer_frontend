@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "../../hooks/UseAuth";
 
 import {
@@ -17,13 +17,14 @@ import {
 const Asidebar = () => {
   const location = useLocation();
 
-  const { currentUser, dwqdwqdw } = useAuth();
+  const { currentUser } = useAuth();
 
   const isActive = (path) => {
     return location.pathname === path
       ? "bg-gray-100 dark:bg-gray-700 text-red-600 dark:text-red-400"
       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700";
   };
+  const { channelId } = useParams();
 
   return (
     <div className="hidden md:flex flex-col fixed left-0 top-16 w-64 h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-40">
@@ -42,7 +43,9 @@ const Asidebar = () => {
           {currentUser && (
             <>
               <Link
-                to="/subscriptions"
+                to={`/subscriptions/${
+                  currentUser?.channelId || currentUser?._id
+                }`}
                 className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive(
                   "/subscriptions"
                 )}`}

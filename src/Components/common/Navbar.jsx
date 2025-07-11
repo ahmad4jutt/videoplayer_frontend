@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/UseAuth";
-import { getcurrentUser } from "../../services/api";
 import { Menu, Search, X, Bell, User, Moon, Sun, LogOut } from "lucide-react";
 
 const Navbar = () => {
@@ -12,24 +11,11 @@ const Navbar = () => {
     return null;
   }
   const { currentUser, logout } = authContext;
-  console.log("current user are not fetching", currentUser);
 
   const userData = currentUser?.data || currentUser;
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-
-  //replace localstorage usage with state-only
-  // const [isDarkMode, setIsDarkMode] = useState(() => {
-  //   if (typeof window !== "undefined" && window.localStorage) {
-  //     return (
-  //       localStorage.theme === "dark" ||
-  //       (!("theme" in localStorage) &&
-  //         window.matchMedia("(prefers-color-scheme: dark)").matches)
-  //     );
-  //   }
-  //   return false; // default to light mode
-  // });
   const [isDarkMode, setIsDarkMode] = useState(false);
   useEffect(() => {
     if (typeof window !== "undefined") {

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-import { useAuth } from "./hooks/UseAuth";
 
 //auth
 import ResetPasswordPage from "./Components/auth/ResetPasswordPage";
@@ -12,15 +11,19 @@ import Regiserpage from "./Components/auth/Registerpage";
 import Profilepage from "./Components/user/Profilepage";
 import Settingpage from "./Components/user/Settingpage";
 import History from "./Components/auth/History";
+import Subscription from "./Components/user/Subscription";
 
 //video
 import Homepage from "./Components/video/Homepage";
 import Videopage from "./Components/video/Videopage";
 import VideoDetailpage from "./Components/video/VideoDetailpage";
+import ChannelVideoPage from "./Components/video/ChannelVideoPage";
+import UserChannelPage from "./Components/video/UserChannelPage";
 
 //playlist
 import CreatePlaylist from "./Components/playlist/CreatePlaylist";
 import Playlistpage from "./Components/playlist/Playlistpage";
+import PlaylistById from "./Components/playlist/PlaylistById";
 
 //dashboard
 import Dashboardpage from "./Components/dashboard/Dashboardpage";
@@ -28,6 +31,7 @@ import ProtectedRoute from "./Components/ProtectedRoutes";
 
 //layout
 import Layout from "./layoout/Layout";
+import LikedVideo from "./Components/video/LikedVideo";
 
 function App() {
   return (
@@ -65,6 +69,22 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  {/* <Route
+                    path="/channel/:videoId"
+                    element={
+                      <ProtectedRoute>
+                        <ChannelVideoPage />
+                      </ProtectedRoute>
+                    }
+                  /> */}
+                  <Route
+                    path="/channel/:userId"
+                    element={
+                      <ProtectedRoute>
+                        <UserChannelPage />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="/history"
                     element={
@@ -73,7 +93,17 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="/subscriptions/:channelId"
+                    element={
+                      <ProtectedRoute>
+                        <Subscription />
+                      </ProtectedRoute>
+                    }
+                  />
+
                   <Route path="/video/:videoId" element={<VideoDetailpage />} />
+                  <Route path="/liked-videos" element={<LikedVideo />} />
                   <Route
                     path="/profile/:_id"
                     element={
@@ -104,6 +134,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <CreatePlaylist />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/playlists/:playlistId"
+                    element={
+                      <ProtectedRoute>
+                        <PlaylistById />
                       </ProtectedRoute>
                     }
                   />

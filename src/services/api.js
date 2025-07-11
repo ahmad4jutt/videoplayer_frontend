@@ -126,6 +126,10 @@ export const getChannelVideo = (token) =>
   axios.get(`${VIDEO_BASE_URL}/channel`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+export const getUserChannelVideos = (token, userId) =>
+  axios.get(`${VIDEO_BASE_URL}/channel/${userId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 export const getAllVideos = (token, videoId) =>
   axios.get(`${VIDEO_BASE_URL}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -247,22 +251,21 @@ export const toggleTweetLike = (token, tweetId) =>
     headers: { Authorization: `Bearer ${token}` },
   });
 
-// export const getLikedVideos = (token, ) =>
-//   axios.get(`${LIKE_BASE_URL}/videos`, {
-//     headers: { Authorization: `Bearer ${token}` },
-//   });
+export const getLikedVideos = (token) =>
+  axios.get(`${LIKE_BASE_URL}/videos`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 export const getVideoWithLikeStatus = (token, videoId) =>
   axios.get(`${LIKE_BASE_URL}/videos/${videoId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 //subscriber
-export const getUserChannelSubscriber = (token, channelId) =>
-  axios.get(`${SUBSCRIPTION_BASE_URL}/c/${channelId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
 export const toggleSubscription = (token, channelId) =>
   axios.post(`${SUBSCRIPTION_BASE_URL}/c/${channelId}`, null, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+export const getUserChannelSubscriber = (token, channelId) =>
+  axios.get(`${SUBSCRIPTION_BASE_URL}/c/${channelId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
