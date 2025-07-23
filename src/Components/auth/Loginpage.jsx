@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../hooks/UseAuth";
 import { forgotPassword } from "../../services/api";
 import { Navigate, useNavigate, Link } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, User, X } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, X, AlertTriangle } from "lucide-react";
+
 const Loginpage = () => {
   const { login, currentUser, loading } = useAuth();
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -17,6 +18,13 @@ const Loginpage = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMessage, setForgotMessage] = useState("");
+
+  // Account deactivation modal state
+  const [showDeactivatedModal, setShowDeactivatedModal] = useState(false);
+  const [deactivationInfo, setDeactivationInfo] = useState({
+    reason: "",
+    deactivatedAt: "",
+  });
 
   if (loading) {
     return (
@@ -52,21 +60,44 @@ const Loginpage = () => {
     loginInProgress.current = true;
     setFormLoading(true);
     setMessage("");
+
     try {
       console.log("start login progress");
       const response = await login(formData);
       const receivedToken = response.data.data.accessToken;
-      console.log("Received token:", receivedToken); // Verify token exists
+      console.log("Received token:", receivedToken);
       console.log("Login API response:", response.data);
+
       setMessage("Login Successfully ");
       setTimeout(() => {
         navigate("/", { replace: true });
       }, 100);
     } catch (error) {
       console.error("Login error:", error);
-      setMessage(
-        error?.response?.data?.message || error.message || "Login failed."
-      );
+
+      // Check if the error is due to account deactivation
+      if (
+        error?.response?.data?.code === "ACCOUNT_DEACTIVATED" ||
+        error?.response?.data?.message?.toLowerCase().includes("deactivated") ||
+        error?.response?.data?.message?.toLowerCase().includes("inactive")
+      ) {
+        // Extract deactivation information from error response
+        const errorData = error.response.data;
+        setDeactivationInfo({
+          reason:
+            errorData.deactivationReason ||
+            errorData.reason ||
+            "Account has been deactivated",
+          deactivatedAt: errorData.deactivatedAt || "Unknown",
+        });
+        setShowDeactivatedModal(true);
+        setMessage(""); // Clear any previous messages
+      } else {
+        // Handle other login errors normally
+        setMessage(
+          error?.response?.data?.message || error.message || "Login failed."
+        );
+      }
     } finally {
       setFormLoading(false);
       loginInProgress.current = false;
@@ -82,6 +113,11 @@ const Loginpage = () => {
   const closeForgotModal = () => {
     setShowForgotModal(false);
     resetForgotPassword();
+  };
+
+  const closeDeactivatedModal = () => {
+    setShowDeactivatedModal(false);
+    setDeactivationInfo({ reason: "", deactivatedAt: "" });
   };
 
   const handleForgotPasswordSubmit = async (e) => {
@@ -101,6 +137,21 @@ const Loginpage = () => {
       );
     } finally {
       setForgotLoading(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString || dateString === "Unknown") return "Unknown";
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "Unknown";
     }
   };
 
@@ -235,6 +286,98 @@ const Loginpage = () => {
         <div className="absolute -top-6 -right-6 w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full opacity-60 animate-bounce animation-delay-1000"></div>
         <div className="absolute -bottom-6 -left-6 w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full opacity-60 animate-bounce animation-delay-3000"></div>
       </div>
+
+      {/* Account Deactivated Modal */}
+      {showDeactivatedModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 shadow-2xl max-w-md w-full transform transition-all duration-300">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                  <AlertTriangle className="w-6 h-6 text-red-500" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  Account Deactivated
+                </h3>
+              </div>
+              <button
+                onClick={closeDeactivatedModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Account Deactivation Information */}
+            <div className="mb-6">
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+                <div className="mb-4">
+                  <h4 className="text-lg font-semibold text-red-800 mb-2">
+                    Your account has been deactivated
+                  </h4>
+                  <p className="text-red-700 text-sm">
+                    You cannot log in at this time because your account is
+                    currently inactive.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <span className="font-medium text-red-800">Reason: </span>
+                    <span className="text-red-700">
+                      {deactivationInfo.reason}
+                    </span>
+                  </div>
+
+                  {deactivationInfo.deactivatedAt &&
+                    deactivationInfo.deactivatedAt !== "Unknown" && (
+                      <div>
+                        <span className="font-medium text-red-800">
+                          Deactivated on:{" "}
+                        </span>
+                        <span className="text-red-700">
+                          {formatDate(deactivationInfo.deactivatedAt)}
+                        </span>
+                      </div>
+                    )}
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                <h4 className="font-semibold text-blue-800 mb-2">Need Help?</h4>
+                <p className="text-blue-700 text-sm">
+                  If you believe this is an error or would like to appeal this
+                  decision, please contact our support team for assistance.
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={closeDeactivatedModal}
+                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded-2xl transition-colors duration-200"
+              >
+                OK
+              </button>
+              <button
+                onClick={() => {
+                  closeDeactivatedModal();
+                  // You can add navigation to support/contact page here
+                  // navigate('/contact-support');
+                }}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-2xl transition-colors duration-200"
+              >
+                Contact Support
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Forgot Password Modal */}
       {showForgotModal && (

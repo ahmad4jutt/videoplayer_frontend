@@ -212,7 +212,10 @@ const Homepage = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-gray-800 mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Video Hub
+            <span className="text-red-600 text-4xl font-bold">Vid</span>
+            <span className="text-gray-800 dark:text-gray-700 text-4xl font-bold">
+              zio
+            </span>
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Discover, watch, and enjoy amazing content from creators around the

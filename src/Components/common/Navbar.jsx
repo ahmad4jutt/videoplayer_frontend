@@ -76,9 +76,9 @@ const Navbar = () => {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <Link to="/" className="flex items-center">
-                  <span className="text-red-600 text-2xl font-bold">Video</span>
+                  <span className="text-red-600 text-2xl font-bold">Vid</span>
                   <span className="text-gray-800 dark:text-white text-2xl font-bold">
-                    Tube
+                    zio
                   </span>
                 </Link>
               </div>

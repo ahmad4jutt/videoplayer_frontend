@@ -1,7 +1,6 @@
 import axios from "axios";
 //USER routes
 
-const USER_BASE_URL = "http://localhost:8000/api/v1/users";
 const VIDEO_BASE_URL = "http://localhost:8000/api/v1/videos/";
 const COMMENT_BASE_URL = "http://localhost:8000/api/v1/comments";
 const DASHBOARD_BASE_URL = "http://localhost:8000/api/v1/dashboard";
@@ -9,6 +8,8 @@ const PLAYLIST_BASE_URL = "http://localhost:8000/api/v1/playlists";
 const LIKE_BASE_URL = "http://localhost:8000/api/v1/likes";
 const SUBSCRIPTION_BASE_URL = "http://localhost:8000/api/v1/subscriptions";
 const HEALTHCHECK_BASE_URL = "http://localhost:8000/api/v1/healthcheck";
+const USER_BASE_URL = "http://localhost:8000/api/v1/users";
+const ADMIN_BASE_URL = "http://localhost:8000/api/v1/users/admin";
 
 export const registerUser = (formData) =>
   axios.post(`${USER_BASE_URL}/register`, formData, {
@@ -26,18 +27,62 @@ export const logoutUser = (token) =>
     }
   );
 export const forgotPassword = (email) => {
-  axios.post(`${USER_BASE_URL}/forget-password`, { email });
+  return axios.post(`${USER_BASE_URL}/forget-password`, { email });
 };
-export const resetPassword = (token, password) => {
-  return axios.post(`${USER_BASE_URL}/reset-password/${token}`, {
-    password: password,
-    confirmPassword: password,
-  });
+export const resetPassword = (token, passwordData) => {
+  return axios.post(`${USER_BASE_URL}/reset-password/${token}`, passwordData);
 };
+export const deleteAccount = async (token, data) => {
+  try {
+    const response = await axios.delete(`${USER_BASE_URL}/delete-account`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      data: data, // Send the password in the request body
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Delete account error:", error);
+    // Extract error message from response
+    const errorMessage =
+      error.response?.data?.message ||
+      error.message ||
+      "Failed to delete account";
+    throw new Error(errorMessage);
+  }
+};
+
+export const deactivateAccount = async (token, data) => {
+  try {
+    const response = await axios.post(
+      `${USER_BASE_URL}/deactivate-account`,
+      data,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Deactivate account error:", error);
+    // Extract error message from response
+    const errorMessage =
+      error.response?.data?.message ||
+      error.message ||
+      "Failed to deactivate account";
+    throw new Error(errorMessage);
+  }
+};
+
+export const reactivateAccount = (data) =>
+  axios.post(`${USER_BASE_URL}/reactivate-account`, data);
 export const getcurrentUser = (token) =>
-  axios.post(
+  axios.get(
     `${USER_BASE_URL}/current-user`,
-    {},
+
     {
       headers: { Authorization: `Bearer ${token}` },
     }
@@ -49,14 +94,13 @@ export const changePassword = (token, data) =>
   });
 
 export const updateAccountDetails = (token, data) =>
-  axios.post(`${USER_BASE_URL}/update-account`, data, {
+  axios.patch(`${USER_BASE_URL}/update-account`, data, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
 export const updateAvatar = (token, avatarFile) => {
   const formData = new FormData();
   formData.append("avatar", avatarFile);
-
   return axios.patch(`${USER_BASE_URL}/avatar`, formData, {
     headers: {
       "Content-Type": "multipart/form-data",
@@ -113,6 +157,90 @@ export const removeFromWatchHistory = (videoId, token) =>
 export const clearWatchHistory = (token) =>
   axios.delete(`${USER_BASE_URL}/history`, {
     headers: { Authorization: `Bearer ${token}` },
+  });
+export const searchUsers = (token, query) =>
+  axios.get(`${USER_BASE_URL}/search?query=${encodeURIComponent(query)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+// admin
+export const adminLogin = (data) => axios.post(`${ADMIN_BASE_URL}/login`, data);
+
+export const adminRegister = (token, data) =>
+  axios.post(`${ADMIN_BASE_URL}/register`, data, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+export const getCurrentAdmin = (token) => {
+  console.log("Sending request with token:", token); // Add this line
+  return axios.get(`${ADMIN_BASE_URL}/current-admin`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+export const adminLogout = (token) =>
+  axios.post(
+    `${ADMIN_BASE_URL}/logout`,
+    {},
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      withCredentials: true, // Important for cookies
+    }
+  );
+// Admin Dashboard & Analytics
+export const getAdminDashboard = (token) =>
+  axios.get(`${ADMIN_BASE_URL}/dashboard`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const getSystemAnalytics = (token, period = "7d") =>
+  axios.get(`${ADMIN_BASE_URL}/analytics?period=${period}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+// User Management
+export const getAllUsers = (token, params = {}) => {
+  const queryParams = new URLSearchParams();
+
+  // Add optional query parameters
+  if (params.page) queryParams.append("page", params.page);
+  if (params.limit) queryParams.append("limit", params.limit);
+  if (params.search) queryParams.append("search", params.search);
+  if (params.status) queryParams.append("status", params.status);
+  if (params.sortBy) queryParams.append("sortBy", params.sortBy);
+  if (params.sortOrder) queryParams.append("sortOrder", params.sortOrder);
+
+  const queryString = queryParams.toString();
+  const url = `${ADMIN_BASE_URL}/users${queryString ? `?${queryString}` : ""}`;
+
+  return axios.get(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+export const getUserById = (token, userId) =>
+  axios.get(`${ADMIN_BASE_URL}/users/${userId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const forceDeactivateUser = (token, userId, data) =>
+  axios.patch(`${ADMIN_BASE_URL}/users/${userId}/deactivate`, data, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const adminReactivateUser = (token, userId) =>
+  axios.patch(
+    `${ADMIN_BASE_URL}/users/${userId}/reactivate`,
+    {},
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+export const adminDeleteUser = (token, userId, data) =>
+  axios.delete(`${ADMIN_BASE_URL}/users/${userId}/delete`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    data: data, // Contains confirmDelete and reason
   });
 // VideoRequest
 export const publishVideo = (token, videoFormData) =>

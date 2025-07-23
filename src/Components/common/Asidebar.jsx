@@ -24,7 +24,7 @@ const Asidebar = () => {
       ? "bg-gray-100 dark:bg-gray-700 text-red-600 dark:text-red-400"
       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700";
   };
-  const { channelId } = useParams();
+  const { channelId, videoId: userId } = useParams();
 
   return (
     <div className="hidden md:flex flex-col fixed left-0 top-16 w-64 h-screen bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-40">
@@ -42,8 +42,8 @@ const Asidebar = () => {
 
           {currentUser && (
             <>
-              <Link
-                to={`/subscriptions/${
+              {/* <Link
+                to={`/subscribers/${
                   currentUser?.channelId || currentUser?._id
                 }`}
                 className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive(
@@ -52,8 +52,16 @@ const Asidebar = () => {
               >
                 <Users className="mr-3 h-5 w-5" />
                 Subscriptions
+              </Link> */}
+              <Link
+                to="/subscribed-channels"
+                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive(
+                  "/subscriptions"
+                )}`}
+              >
+                <Users className="mr-3 h-5 w-5" />
+                Subscriptions
               </Link>
-
               <div className="pt-5">
                 <p className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Library
@@ -70,16 +78,16 @@ const Asidebar = () => {
                   </Link>
 
                   <Link
-                    to="/my-videos"
+                    to={`/channel`}
                     className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive(
                       "/my-videos"
                     )}`}
                   >
                     <Play className="mr-3 h-5 w-5" />
-                    Your Videos
+                    Your Channel
                   </Link>
 
-                  <Link
+                  {/* <Link
                     to="/watch-later"
                     className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive(
                       "/watch-later"
@@ -87,7 +95,7 @@ const Asidebar = () => {
                   >
                     <Clock className="mr-3 h-5 w-5" />
                     Watch Later
-                  </Link>
+                  </Link> */}
 
                   <Link
                     to="/liked-videos"

@@ -25,7 +25,6 @@ export default function VideoStats() {
     setLoading(true);
     getChannelVideos(token)
       .then((res) => {
-        console.log("✅ Channel videos:", res.data);
         setVideos(res.data?.data?.videos || []);
       })
       .catch((err) => {

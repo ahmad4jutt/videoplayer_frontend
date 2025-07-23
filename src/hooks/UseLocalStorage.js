@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
-export default function UseLocalStorage(key, initialValue) {
+export function useLocalStorage(key, initialValue) {
   // Get initial value from localStorage
   const [stored, setStored] = useState(() => {
     try {
       const item = window.localStorage.getItem(key);
-      console.log(`UseLocalStorage init - key: ${key}, item: ${item}`);
+      console.log(`useLocalStorage init - key: ${key}, item: ${item}`);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
       console.error(`Error reading localStorage key "${key}":`, error);
@@ -13,29 +13,29 @@ export default function UseLocalStorage(key, initialValue) {
     }
   });
 
-  const setValue = (value) => {
-    try {
-      console.log(`UseLocalStorage setValue - key: ${key}, value:`, value);
-
-      // Allow value to be a function so we have the same API as useState
-      const valueToStore = value instanceof Function ? value(stored) : value;
-
-      // Update state
-      setStored(valueToStore);
-
-      // Update localStorage
-      if (valueToStore === null || valueToStore === undefined) {
-        console.log(`Removing localStorage key: ${key}`);
-        window.localStorage.removeItem(key);
-      } else {
-        const stringValue = JSON.stringify(valueToStore);
-        console.log(`Setting localStorage key: ${key} = ${stringValue}`);
-        window.localStorage.setItem(key, stringValue);
+  const setValue = useCallback(
+    (value) => {
+      try {
+        console.log(`useLocalStorage setValue - key: ${key}, value:`, value);
+        // Allow value to be a function so we have the same API as useState
+        const valueToStore = value instanceof Function ? value(stored) : value;
+        // Update state
+        setStored(valueToStore);
+        // Update localStorage
+        if (valueToStore === null || valueToStore === undefined) {
+          console.log(`Removing localStorage key: ${key}`);
+          window.localStorage.removeItem(key);
+        } else {
+          const stringValue = JSON.stringify(valueToStore);
+          console.log(`Setting localStorage key: ${key} = ${stringValue}`);
+          window.localStorage.setItem(key, stringValue);
+        }
+      } catch (error) {
+        console.error(`Error setting localStorage key "${key}":`, error);
       }
-    } catch (error) {
-      console.error(`Error setting localStorage key "${key}":`, error);
-    }
-  };
+    },
+    [key]
+  ); // Removed 'stored' from dependencies
 
   // Listen for storage changes from other tabs
   useEffect(() => {

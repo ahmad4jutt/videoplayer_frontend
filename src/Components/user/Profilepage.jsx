@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from "react";
 import {
   Camera,
-  Upload,
-  User,
-  Mail,
-  Calendar,
-  MapPin,
-  Edit2,
+  Edit,
   Save,
   X,
-  Lock,
-  AlertCircle,
+  User,
+  Mail,
+  Shield,
+  Calendar,
+  Settings,
+  Eye,
+  EyeOff,
+  Trash2,
+  Power,
+  PowerOff,
+  AlertTriangle,
 } from "lucide-react";
 import {
   getcurrentUser,
@@ -18,561 +22,1020 @@ import {
   updateCoverImage,
   updateAccountDetails,
   changePassword,
+  deleteAccount,
+  deactivateAccount,
+  reactivateAccount,
 } from "../../services/api";
-
 import { useAuth } from "../../hooks/UseAuth";
 
-export default function ProfilePage() {
+const Profilepage = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState({ avatar: false, cover: false });
   const [editing, setEditing] = useState(false);
-  const [editedUser, setEditedUser] = useState({});
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("profile");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState({
+    delete: false,
+    deactivate: false,
+    reactivate: false,
+  });
+  const [confirmText, setConfirmText] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState(""); // Add password confirmation state
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // Add password visibility state
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+  });
   const [passwordData, setPasswordData] = useState({
-    oldPassword: "",
+    currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
-  const { currentUser } = useAuth();
-  const [errors, setErrors] = useState({});
+  const [uploading, setUploading] = useState({ avatar: false, cover: false });
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [token, setToken] = useState("");
+  const { token, currentUser, logout } = useAuth();
 
   useEffect(() => {
-    // Get token from localStorage or your auth context
-    const authToken = localStorage.getItem("authToken") || "your-auth-token";
-    setToken(authToken);
-    loadUserData(authToken);
+    fetchCurrentUser();
   }, []);
 
-  const loadUserData = async (authToken) => {
+  const fetchCurrentUser = async () => {
     try {
       setLoading(true);
-      const response = await getcurrentUser(authToken);
-      const userData = response.data?.data || response.data;
+      const userData = await currentUser;
       setUser(userData);
-      setEditedUser({
-        fullName: userData.fullName || "",
-        email: userData.email || "",
-        username: userData.username || "",
-        // bio: userData.bio || "",
-        // location: userData.location || "",
+      setFormData({
+        fullName: userData.fullName,
+        email: userData.email,
       });
-      setErrors({});
     } catch (error) {
-      console.error("Failed to load user data:", error);
-      setErrors({ general: "Failed to load profile data" });
+      console.error("Error fetching user:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAvatarUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validate file type and size
-    if (!file.type.startsWith("image/")) {
-      setErrors({ avatar: "Please select a valid image file" });
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      // 5MB limit
-      setErrors({ avatar: "Image size should be less than 5MB" });
-      return;
-    }
-
-    try {
-      setUploading((prev) => ({ ...prev, avatar: true }));
-      setErrors({});
-      const response = await updateAvatar(token, file);
-
-      if (response.data.success) {
-        setUser((prev) => ({
-          ...prev,
-          avatar: response.data.data.avatar || response.data.avatar,
-        }));
-        setSuccess("Avatar updated successfully!");
-        setTimeout(() => setSuccess(""), 3000);
-      }
-    } catch (error) {
-      console.error("Failed to update avatar:", error);
-      setErrors({
-        avatar: error.response?.data?.message || "Failed to update avatar",
-      });
-    } finally {
-      setUploading((prev) => ({ ...prev, avatar: false }));
-    }
-  };
-
-  const handleCoverUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validate file type and size
-    if (!file.type.startsWith("image/")) {
-      setErrors({ cover: "Please select a valid image file" });
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      // 10MB limit
-      setErrors({ cover: "Image size should be less than 10MB" });
-      return;
-    }
-
-    try {
-      setUploading((prev) => ({ ...prev, cover: true }));
-      setErrors({});
-      const response = await updateCoverImage(token, file);
-
-      if (response.data.success) {
-        setUser((prev) => ({
-          ...prev,
-          coverImage: response.data.data.coverImage || response.data.coverImage,
-        }));
-        setSuccess("Cover image updated successfully!");
-        setTimeout(() => setSuccess(""), 3000);
-      }
-    } catch (error) {
-      console.error("Failed to update cover image:", error);
-      setErrors({
-        cover: error.response?.data?.message || "Failed to update cover image",
-      });
-    } finally {
-      setUploading((prev) => ({ ...prev, cover: false }));
-    }
-  };
-
   const handleEditToggle = () => {
-    if (editing) {
-      setEditedUser({
-        fullName: user.fullName || "",
-        email: user.email || "",
-        username: user.username || "",
-        // bio: user.bio || "",
-        // location: user.location || "",
-      });
-    }
     setEditing(!editing);
-    setErrors({});
-  };
-
-  const handleSave = async () => {
-    try {
-      setErrors({});
-      const response = await updateAccountDetails(token, editedUser);
-
-      if (response.data.success) {
-        setUser((prev) => ({ ...prev, ...editedUser }));
-        setEditing(false);
-        setSuccess("Profile updated successfully!");
-        setTimeout(() => setSuccess(""), 3000);
-      }
-    } catch (error) {
-      console.error("Failed to update profile:", error);
-      setErrors({
-        general: error.response?.data?.message || "Failed to update profile",
-        ...(error.response?.data?.errors || {}),
+    setError("");
+    setSuccess("");
+    if (!editing) {
+      setFormData({
+        fullName: user.fullName,
+        email: user.email,
       });
     }
   };
 
-  const handlePasswordChange = async () => {
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSaveChanges = async () => {
     try {
-      setErrors({});
+      setLoading(true);
+      setError("");
+      setSuccess("");
+
+      if (!formData.fullName || !formData.email) {
+        setError("Full name and email are required");
+        return;
+      }
+
+      const response = await updateAccountDetails(token, formData);
+
+      setUser((prev) => ({ ...prev, ...formData }));
+      setEditing(false);
+      setSuccess("Profile updated successfully!");
+    } catch (error) {
+      setError("Failed to update profile. Please try again.");
+      console.error("Error updating account:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
+    try {
+      setError("");
+      setSuccess("");
+
+      if (
+        !passwordData.currentPassword ||
+        !passwordData.newPassword ||
+        !passwordData.confirmPassword
+      ) {
+        setError("All password fields are required");
+        return;
+      }
 
       if (passwordData.newPassword !== passwordData.confirmPassword) {
-        setErrors({ confirmPassword: "Passwords do not match" });
+        setError("New passwords do not match");
         return;
       }
 
       if (passwordData.newPassword.length < 6) {
-        setErrors({
-          newPassword: "Password must be at least 6 characters long",
-        });
+        setError("New password must be at least 6 characters long");
         return;
       }
 
-      const response = await changePassword(token, {
-        oldPassword: passwordData.oldPassword,
-        newPassword: passwordData.newPassword,
-      });
+      setLoading(true);
 
-      if (response.data.success) {
-        setShowPasswordModal(false);
-        setPasswordData({
-          oldPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        });
-        setSuccess("Password changed successfully!");
-        setTimeout(() => setSuccess(""), 3000);
-      }
+      await changePassword(token, passwordData);
+
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setSuccess("Password updated successfully!");
     } catch (error) {
-      console.error("Failed to change password:", error);
-      setErrors({
-        password: error.response?.data?.message || "Failed to change password",
-      });
+      setError(error.message || "Failed to update password");
+      console.error("Error updating password:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setEditedUser((prev) => ({ ...prev, [field]: value }));
-    // Clear field-specific errors
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
+  const handleDeleteAccount = async () => {
+    if (confirmText !== "DELETE") {
+      setError("Please type 'DELETE' to confirm account deletion");
+      return;
+    }
+
+    if (!confirmPassword) {
+      setError("Please enter your password to confirm account deletion");
+      return;
+    }
+
+    try {
+      setActionLoading((prev) => ({ ...prev, delete: true }));
+      setError("");
+      setSuccess("");
+
+      // Debug: Log what we're sending
+      console.log(
+        "Attempting to delete account with password:",
+        confirmPassword ? "PROVIDED" : "NOT PROVIDED"
+      );
+
+      // Make sure we're sending the correct data format
+      const deleteData = {
+        password: confirmPassword,
+      };
+
+      console.log("Delete data being sent:", deleteData);
+
+      // Send password along with the delete request
+      await deleteAccount(token, deleteData);
+
+      setSuccess("Account deleted successfully. Redirecting...");
+      setTimeout(() => {
+        logout();
+        window.location.href = "/";
+      }, 2000);
+    } catch (error) {
+      console.error("Delete account error in component:", error);
+      setError(
+        error.message || "Failed to delete account. Please check your password."
+      );
+    } finally {
+      setActionLoading((prev) => ({ ...prev, delete: false }));
+      setShowDeleteModal(false);
+      setConfirmText("");
+      setConfirmPassword("");
     }
   };
 
-  if (loading) {
+  const handleDeactivateAccount = async () => {
+    if (confirmText !== "DEACTIVATE") {
+      setError("Please type 'DEACTIVATE' to confirm account deactivation");
+      return;
+    }
+
+    if (!confirmPassword) {
+      setError("Please enter your password to confirm account deactivation");
+      return;
+    }
+
+    try {
+      setActionLoading((prev) => ({ ...prev, deactivate: true }));
+      setError("");
+      setSuccess("");
+
+      // Debug: Log what we're sending
+      console.log(
+        "Attempting to deactivate account with password:",
+        confirmPassword ? "PROVIDED" : "NOT PROVIDED"
+      );
+
+      // Make sure we're sending the correct data format
+      const deactivateData = {
+        password: confirmPassword,
+      };
+
+      console.log("Deactivate data being sent:", deactivateData);
+
+      // Send password along with the deactivate request
+      await deactivateAccount(token, deactivateData);
+
+      setSuccess("Account deactivated successfully. You will be logged out.");
+      setTimeout(() => {
+        logout();
+        window.location.href = "/";
+      }, 2000);
+    } catch (error) {
+      console.error("Deactivate account error in component:", error);
+      setError(
+        error.message ||
+          "Failed to deactivate account. Please check your password."
+      );
+    } finally {
+      setActionLoading((prev) => ({ ...prev, deactivate: false }));
+      setShowDeactivateModal(false);
+      setConfirmText("");
+      setConfirmPassword("");
+    }
+  };
+
+  const handleReactivateAccount = async () => {
+    try {
+      setActionLoading((prev) => ({ ...prev, reactivate: true }));
+      setError("");
+      setSuccess("");
+
+      // You might need to pass user credentials or activation data
+      await reactivateAccount({ email: user.email });
+
+      setSuccess("Account reactivated successfully!");
+      fetchCurrentUser(); // Refresh user data
+    } catch (error) {
+      setError(error.message || "Failed to reactivate account");
+      console.error("Error reactivating account:", error);
+    } finally {
+      setActionLoading((prev) => ({ ...prev, reactivate: false }));
+    }
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        setError("");
+        setSuccess("");
+
+        setUploading((prev) => ({ ...prev, avatar: true }));
+
+        const response = await updateAvatar(token, file);
+
+        console.log("Response:", response.data);
+
+        let avatarUrl = null;
+
+        if (response.data) {
+          avatarUrl =
+            response.data.avatar ||
+            response.data.data?.avatar ||
+            response.data.data?.user?.avatar ||
+            response.data.user?.avatar;
+        }
+
+        if (avatarUrl) {
+          setUser((prev) => ({
+            ...prev,
+            avatar: avatarUrl,
+          }));
+          setSuccess("Avatar updated successfully!");
+        } else {
+          console.error(
+            "Avatar URL not found. Response structure:",
+            response.data
+          );
+          setError("Avatar URL not found in response");
+        }
+      } catch (error) {
+        setError("Failed to update avatar");
+        console.error("Error updating avatar:", error);
+      } finally {
+        setUploading((prev) => ({ ...prev, avatar: false }));
+      }
+    }
+  };
+
+  const handleCoverChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        setError("");
+        setSuccess("");
+
+        if (!file.type.startsWith("image/")) {
+          setError("Please select a valid image file");
+          return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+          setError("Image size should be less than 10MB");
+          return;
+        }
+
+        setUploading((prev) => ({ ...prev, cover: true }));
+
+        const response = await updateCoverImage(token, file);
+
+        setUser((prev) => ({
+          ...prev,
+          coverImage: response.data.data.coverImage,
+        }));
+        setSuccess("Cover image updated successfully!");
+      } catch (error) {
+        setError("Failed to update cover image");
+        console.error("Error updating cover image:", error);
+      } finally {
+        setUploading((prev) => ({ ...prev, cover: false }));
+      }
+    }
+  };
+
+  // Reset modal states when closing
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setConfirmText("");
+    setConfirmPassword("");
+    setError("");
+  };
+
+  const handleCloseDeactivateModal = () => {
+    setShowDeactivateModal(false);
+    setConfirmText("");
+    setConfirmPassword("");
+    setError("");
+  };
+
+  // Modal Component
+  const Modal = ({ isOpen, onClose, title, children }) => {
+    if (!isOpen) return null;
+
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 p-1"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          {children}
+        </div>
+      </div>
+    );
+  };
+
+  if (loading && !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading profile...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading profile...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Success Message */}
-      {success && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
-          {success}
-        </div>
-      )}
-
-      {/* Cover Image Section */}
-      <div className="relative h-80 bg-gradient-to-r from-blue-500 to-purple-600 overflow-hidden">
-        {user?.coverImage && (
-          <img
-            src={user.coverImage}
-            alt="Cover"
-            className="w-full h-full object-cover"
-          />
-        )}
-
-        {/* Cover Upload Button */}
-        <div className="absolute top-4 right-4">
-          <label className="bg-black bg-opacity-50 hover:bg-opacity-70 text-white px-4 py-2 rounded-lg cursor-pointer transition-all duration-200 flex items-center gap-2">
-            {uploading.cover ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Camera size={16} />
-                Change Cover
-              </>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleCoverUpload}
-              className="hidden"
-              disabled={uploading.cover}
-            />
-          </label>
-          {errors.cover && (
-            <p className="text-red-500 text-sm mt-1 bg-white bg-opacity-90 px-2 py-1 rounded">
-              {errors.cover}
-            </p>
-          )}
-        </div>
-
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-      </div>
-
-      {/* Profile Content */}
-      <div className="relative -mt-32 z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-            {/* Profile Header */}
-            <div className="px-6 py-8">
-              {/* General Error Message */}
-              {errors.general && (
-                <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
-                  <AlertCircle size={16} />
-                  {errors.general}
-                </div>
-              )}
-
-              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6">
-                {/* Avatar */}
-                <div className="relative">
-                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gray-200">
-                    {user?.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <User size={40} className="text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Avatar Upload Button */}
-                  <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full cursor-pointer transition-colors duration-200 shadow-lg">
-                    {uploading.avatar ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    ) : (
-                      <Camera size={16} />
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarUpload}
-                      className="hidden"
-                      disabled={uploading.avatar}
-                    />
-                  </label>
-                  {errors.avatar && (
-                    <p className="text-red-500 text-sm mt-1 absolute -bottom-6 left-0 w-32 text-center">
-                      {errors.avatar}
-                    </p>
-                  )}
-                </div>
-
-                {/* User Info */}
-                <div className="flex-1 text-center sm:text-left">
-                  {editing ? (
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        value={editedUser.fullName}
-                        onChange={(e) =>
-                          handleInputChange("fullName", e.target.value)
-                        }
-                        placeholder="Full Name"
-                        className="text-3xl font-bold text-gray-900 bg-transparent border-b-2 border-blue-600 focus:outline-none focus:border-blue-800 w-full"
-                      />
-                      {errors.fullName && (
-                        <p className="text-red-500 text-sm">
-                          {errors.fullName}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                      {user?.fullName || "User"}
-                    </h1>
-                  )}
-
-                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-gray-600 mt-4">
-                    <div className="flex items-center gap-2">
-                      <Mail size={16} />
-                      <span>{user?.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <User size={16} />
-                      <span>@{user?.username}</span>
-                    </div>
-                    {user?.location && (
-                      <div className="flex items-center gap-2">
-                        <MapPin size={16} />
-                        {editing ? (
-                          <input
-                            type="text"
-                            value={editedUser.location}
-                            onChange={(e) =>
-                              handleInputChange("location", e.target.value)
-                            }
-                            placeholder="Location"
-                            className="bg-transparent border-b border-gray-300 focus:outline-none focus:border-blue-600"
-                          />
-                        ) : (
-                          <span>{user.location}</span>
-                        )}
-                      </div>
-                    )}
-                    {user?.createdAt && (
-                      <div className="flex items-center gap-2">
-                        <Calendar size={16} />
-                        <span>
-                          Joined {new Date(user.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  {editing ? (
-                    <>
-                      <button
-                        onClick={handleSave}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
-                      >
-                        <Save size={16} />
-                        Save
-                      </button>
-                      <button
-                        onClick={handleEditToggle}
-                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
-                      >
-                        <X size={16} />
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={handleEditToggle}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
-                      >
-                        <Edit2 size={16} />
-                        Edit Profile
-                      </button>
-                      <button
-                        onClick={() => setShowPasswordModal(true)}
-                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
-                      >
-                        <Lock size={16} />
-                        Change Password
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Bio Section */}
-              <div className="mt-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                  About
-                </h2>
-                {editing ? (
-                  <div>
-                    <textarea
-                      value={editedUser.bio}
-                      onChange={(e) => handleInputChange("bio", e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent resize-none"
-                      rows="3"
-                      placeholder="Tell us about yourself..."
-                    />
-                    {errors.bio && (
-                      <p className="text-red-500 text-sm mt-1">{errors.bio}</p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-gray-600 leading-relaxed">
-                    {user?.bio || "No bio available"}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Password Change Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-
-            {errors.password && (
-              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                {errors.password}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.oldPassword}
-                  onChange={(e) =>
-                    setPasswordData((prev) => ({
-                      ...prev,
-                      oldPassword: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.newPassword}
-                  onChange={(e) =>
-                    setPasswordData((prev) => ({
-                      ...prev,
-                      newPassword: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-                {errors.newPassword && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.newPassword}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.confirmPassword}
-                  onChange={(e) =>
-                    setPasswordData((prev) => ({
-                      ...prev,
-                      confirmPassword: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-                {errors.confirmPassword && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.confirmPassword}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={handlePasswordChange}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors duration-200"
-              >
-                Change Password
-              </button>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      {/* Alert Messages */}
+      {(error || success) && (
+        <div className="fixed top-4 right-4 z-50 max-w-md">
+          <div
+            className={`p-4 rounded-lg shadow-lg ${
+              error
+                ? "bg-red-100 border border-red-400 text-red-700"
+                : "bg-green-100 border border-green-400 text-green-700"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">{error || success}</span>
               <button
                 onClick={() => {
-                  setShowPasswordModal(false);
-                  setPasswordData({
-                    oldPassword: "",
-                    newPassword: "",
-                    confirmPassword: "",
-                  });
-                  setErrors({});
+                  setError("");
+                  setSuccess("");
                 }}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-lg transition-colors duration-200"
+                className="ml-2 text-gray-500 hover:text-gray-700"
               >
-                Cancel
+                <X size={16} />
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Delete Account Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={handleCloseDeleteModal}
+        title="Delete Account"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-red-50 rounded-lg">
+            <AlertTriangle className="text-red-600" size={24} />
+            <div>
+              <p className="text-red-800 font-medium">
+                This action cannot be undone
+              </p>
+              <p className="text-red-600 text-sm">
+                Your account and all data will be permanently deleted
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Enter your password to confirm:
+            </label>
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 pr-10"
+                placeholder="Enter your password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Type "DELETE" to confirm:
+            </label>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              placeholder="DELETE"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={handleCloseDeleteModal}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDeleteAccount}
+              disabled={
+                actionLoading.delete ||
+                confirmText !== "DELETE" ||
+                !confirmPassword
+              }
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {actionLoading.delete ? "Deleting..." : "Delete Account"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Deactivate Account Modal */}
+      {/* <Modal
+        isOpen={showDeactivateModal}
+        onClose={handleCloseDeactivateModal}
+        title="Deactivate Account"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-yellow-50 rounded-lg">
+            <PowerOff className="text-yellow-600" size={24} />
+            <div>
+              <p className="text-yellow-800 font-medium">
+                Your account will be temporarily disabled
+              </p>
+              <p className="text-yellow-600 text-sm">
+                You can reactivate it later by logging in
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Enter your password to confirm:
+            </label>
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 pr-10"
+                placeholder="Enter your password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Type "DEACTIVATE" to confirm:
+            </label>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              placeholder="DEACTIVATE"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={handleCloseDeactivateModal}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDeactivateAccount}
+              disabled={
+                actionLoading.deactivate ||
+                confirmText !== "DEACTIVATE" ||
+                !confirmPassword
+              }
+              className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {actionLoading.deactivate
+                ? "Deactivating..."
+                : "Deactivate Account"}
+            </button>
+          </div>
+        </div>
+      </Modal> */}
+
+      {/* Header with Cover Image */}
+      <div className="relative">
+        <div className="h-72 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 relative overflow-hidden">
+          {user?.coverImage && (
+            <div className="absolute inset-0">
+              <img
+                src={user.coverImage}
+                alt="Cover"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/30 via-purple-600/30 to-pink-600/30"></div>
+            </div>
+          )}
+
+          {/* Cover Upload Button */}
+          <div className="absolute top-6 right-6 z-10">
+            <label className="glass-effect text-white px-4 py-2 rounded-full cursor-pointer hover:bg-white/20 transition-all duration-300 flex items-center gap-2 backdrop-blur-sm">
+              <Camera size={18} />
+              <span className="text-sm font-medium">
+                {uploading.cover ? "Uploading..." : "Change Cover"}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleCoverChange}
+                className="hidden"
+                disabled={uploading.cover}
+              />
+            </label>
+          </div>
+
+          {uploading.cover && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
+              <div className="text-white text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mx-auto mb-3"></div>
+                <p className="text-lg font-medium">Uploading cover image...</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 -mt-24 relative z-10">
+        {/* Profile Header Card */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 p-8 mb-8">
+          <div className="flex flex-col md:flex-row items-center md:items-end gap-6">
+            {/* Avatar Section */}
+            <div className="relative">
+              <div className="w-36 h-36 rounded-full border-4 border-white shadow-2xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100">
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center">
+                    <User size={48} className="text-white" />
+                  </div>
+                )}
+              </div>
+
+              <label className="absolute bottom-2 right-2 bg-indigo-600 text-white p-3 rounded-full cursor-pointer hover:bg-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl">
+                <Camera size={18} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                  disabled={uploading.avatar}
+                />
+              </label>
+
+              {uploading.avatar && (
+                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-3 border-white border-t-transparent"></div>
+                </div>
+              )}
+            </div>
+
+            {/* User Info */}
+            <div className="flex-1 text-center md:text-left">
+              <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                {user?.fullName}
+              </h1>
+              <p className="text-gray-600 text-lg mb-1">{user?.email}</p>
+              <p className="text-indigo-600 font-medium text-sm">
+                {user?.role}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-4 justify-center md:justify-start">
+                <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+                  Member since {new Date(user?.createdAt).toLocaleDateString()}
+                </span>
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                  Current session {new Date().toLocaleDateString()}
+                </span>
+                {user?.isActive === false && (
+                  <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                    Account Deactivated
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 mb-8">
+          <div className="flex overflow-x-auto">
+            {[
+              { id: "profile", label: "Profile Info", icon: User },
+              { id: "security", label: "Security", icon: Shield },
+              { id: "settings", label: "Settings", icon: Settings },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-6 py-4 font-medium transition-all duration-300 border-b-2 ${
+                  activeTab === tab.id
+                    ? "text-indigo-600 border-indigo-600 bg-indigo-50"
+                    : "text-gray-600 border-transparent hover:text-indigo-500 hover:bg-indigo-50/50"
+                }`}
+              >
+                <tab.icon size={20} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8">
+          {activeTab === "profile" && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  Profile Information
+                </h2>
+                <button
+                  onClick={handleEditToggle}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  {editing ? <X size={18} /> : <Edit size={18} />}
+                  {editing ? "Cancel" : "Edit Profile"}
+                </button>
+              </div>
+
+              {editing ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="fullName"
+                        value={formData.fullName}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300"
+                        placeholder="Enter your full name"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Email Address *
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300"
+                        placeholder="Enter your email"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={handleSaveChanges}
+                      disabled={loading}
+                      className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50"
+                    >
+                      <Save size={18} />
+                      {loading ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <User className="text-indigo-600" size={24} />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 font-medium">
+                          Full Name
+                        </p>
+                        <p className="text-lg font-semibold text-gray-800">
+                          {user?.fullName}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <Mail className="text-purple-600" size={24} />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 font-medium">
+                          Email Address
+                        </p>
+                        <p className="text-lg font-semibold text-gray-800">
+                          {user?.email}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <Calendar className="text-green-600" size={24} />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 font-medium">
+                          Member Since
+                        </p>
+                        <p className="text-lg font-semibold text-gray-800">
+                          {new Date(user?.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Shield className="text-blue-600" size={24} />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 font-medium">
+                          Account Status
+                        </p>
+                        <p className="text-lg font-semibold text-gray-800">
+                          {user?.isActive ? "Active" : "Deactivated"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "security" && (
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                Security Settings
+              </h2>
+
+              <div className="space-y-8">
+                {/* Change Password Section */}
+                <div className="bg-gray-50 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                    Change Password
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Current Password *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          name="currentPassword"
+                          value={passwordData.currentPassword}
+                          onChange={handlePasswordChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300 pr-12"
+                          placeholder="Enter current password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showPassword ? (
+                            <EyeOff size={20} />
+                          ) : (
+                            <Eye size={20} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          New Password *
+                        </label>
+                        <input
+                          type="password"
+                          name="newPassword"
+                          value={passwordData.newPassword}
+                          onChange={handlePasswordChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300"
+                          placeholder="Enter new password"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Confirm New Password *
+                        </label>
+                        <input
+                          type="password"
+                          name="confirmPassword"
+                          value={passwordData.confirmPassword}
+                          onChange={handlePasswordChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-300"
+                          placeholder="Confirm new password"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handlePasswordUpdate}
+                      disabled={loading}
+                      className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50"
+                    >
+                      <Shield size={18} />
+                      {loading ? "Updating..." : "Update Password"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "settings" && (
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                Account Settings
+              </h2>
+
+              <div className="space-y-8">
+                {/* Account Actions */}
+                <div className="bg-gray-50 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                    Account Actions
+                  </h3>
+                  <div className="space-y-4">
+                    {/* Reactivate Account (only show if account is deactivated) */}
+                    {user?.isActive === false && (
+                      <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                        <div className="flex items-center gap-3">
+                          <Power className="text-green-600" size={24} />
+                          <div>
+                            <p className="font-medium text-green-800">
+                              Reactivate Account
+                            </p>
+                            <p className="text-sm text-green-600">
+                              Restore your account to active status
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleReactivateAccount}
+                          disabled={actionLoading.reactivate}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 disabled:opacity-50"
+                        >
+                          {actionLoading.reactivate
+                            ? "Reactivating..."
+                            : "Reactivate"}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Deactivate Account (only show if account is active) */}
+                    {/* {user?.isActive !== false && (
+                      <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <div className="flex items-center gap-3">
+                          <PowerOff className="text-yellow-600" size={24} />
+                          <div>
+                            <p className="font-medium text-yellow-800">
+                              Deactivate Account
+                            </p>
+                            <p className="text-sm text-yellow-600">
+                              Temporarily disable your account
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setShowDeactivateModal(true)}
+                          className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-all duration-300"
+                        >
+                          Deactivate
+                        </button>
+                      </div>
+                    )} */}
+
+                    {/* Delete Account */}
+                    <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
+                      <div className="flex items-center gap-3">
+                        <Trash2 className="text-red-600" size={24} />
+                        <div>
+                          <p className="font-medium text-red-800">
+                            Delete Account
+                          </p>
+                          <p className="text-sm text-red-600">
+                            Permanently delete your account and all data
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowDeleteModal(true)}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default Profilepage;

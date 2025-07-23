@@ -11,8 +11,10 @@ import {
   toggleCommentLike,
   toggleSubscription,
   getSubscribedChannels,
+  getUserChannelSubscriber,
 } from "../../services/api";
 import { useAuth } from "../../hooks/UseAuth";
+
 import {
   Eye,
   Clock,
@@ -74,6 +76,8 @@ const VideoDetailpage = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscribing, setSubscribing] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState(null);
+  const [subscriberCount, setSubscriberCount] = useState(0);
+  const [subscriberLoading, setSubscriberLoading] = useState(false);
 
   // FIXED: Fetch video like status function
   const fetchVideoLikeStatus = useCallback(async () => {
@@ -303,7 +307,46 @@ const VideoDetailpage = () => {
       handleLike(e);
     }
   };
+  const fetchSubscriberCount = useCallback(
+    async (channelId) => {
+      if (!token || !channelId) return;
 
+      try {
+        setSubscriberLoading(true);
+        const response = await getUserChannelSubscriber(token, channelId);
+        const count =
+          response?.data?.data?.subscriberCount ||
+          response?.data?.subscriberCount ||
+          0;
+        setSubscriberCount(count);
+      } catch (err) {
+        console.error("Error fetching subscriber count:", err);
+        setSubscriberCount(0);
+      } finally {
+        setSubscriberLoading(false);
+      }
+    },
+    [token]
+  );
+  useEffect(() => {
+    if (video?.owner?._id && currentUser?.data?._id) {
+      console.log(
+        "Fetching subscription status for video owner:",
+        video.owner._id
+      );
+      fetchSubscriptionStatus(video.owner._id);
+    }
+  }, [video?.owner?._id, currentUser?.data?._id, fetchSubscriptionStatus]);
+
+  useEffect(() => {
+    if (video?.owner?._id) {
+      console.log(
+        "Fetching subscriber count for video owner:",
+        video.owner._id
+      );
+      fetchSubscriberCount(video.owner._id);
+    }
+  }, [video?.owner?._id, fetchSubscriberCount]);
   // Handle subscription
   const handleSubscribe = async (e) => {
     e.preventDefault();
@@ -311,24 +354,48 @@ const VideoDetailpage = () => {
 
     if (!token || !video?.owner?._id || subscribing) return;
 
+    const previousSubscribedState = isSubscribed;
+    const previousSubscriberCount = subscriberCount;
+
     try {
       setSubscribing(true);
       setSubscriptionError(null);
 
+      console.log("Toggling subscription for channel:", video.owner._id);
+      console.log("Current subscription state:", isSubscribed);
+
       const response = await toggleSubscription(token, video.owner._id);
+      console.log("Toggle subscription response:", response);
+
       const responseData = response?.data?.data || response?.data;
 
-      if (responseData) {
-        setIsSubscribed(
-          responseData.subscribed !== undefined
-            ? responseData.subscribed
-            : !isSubscribed
+      if (responseData && typeof responseData.subscribed === "boolean") {
+        // Use server response
+        setIsSubscribed(responseData.subscribed);
+        setSubscriberCount((prev) =>
+          responseData.subscribed ? prev + 1 : Math.max(0, prev - 1)
         );
       } else {
-        setIsSubscribed(!isSubscribed);
+        // Fallback: toggle current state
+        const newSubscribedState = !previousSubscribedState;
+        setIsSubscribed(newSubscribedState);
+        setSubscriberCount((prev) =>
+          newSubscribedState ? prev + 1 : Math.max(0, prev - 1)
+        );
       }
+
+      // Re-fetch subscription status to ensure consistency
+      setTimeout(() => {
+        fetchSubscriptionStatus(video.owner._id);
+        fetchSubscriberCount(video.owner._id);
+      }, 500);
     } catch (err) {
       console.error("Error toggling subscription:", err);
+
+      // Revert state on error
+      setIsSubscribed(previousSubscribedState);
+      setSubscriberCount(previousSubscriberCount);
+
       setSubscriptionError(
         err.response?.data?.message || "Failed to update subscription"
       );
@@ -336,7 +403,13 @@ const VideoDetailpage = () => {
       setSubscribing(false);
     }
   };
-
+  const formatSubscriberCount = (count) => {
+    if (!count || count === 0) return "0 subscribers";
+    if (count === 1) return "1 subscriber";
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M subscribers`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K subscribers`;
+    return `${count} subscribers`;
+  };
   // FIXED: Comment like handler
   const handleToggleCommentLike = async (commentId, e) => {
     if (e) {
@@ -746,9 +819,16 @@ const VideoDetailpage = () => {
                       <h3 className="font-semibold text-gray-900 dark:text-white">
                         {video.owner?.fullName || "Unknown Creator"}
                       </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Content Creator
-                      </p>
+                      {subscriberLoading ? (
+                        <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                          <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin inline-block"></span>
+                          Loading...
+                        </span>
+                      ) : (
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {formatSubscriberCount(subscriberCount)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </Link>
@@ -808,16 +888,23 @@ const VideoDetailpage = () => {
               {currentUser && (
                 <form onSubmit={handleAddComment} className="mb-6">
                   <div className="flex gap-3">
-                    {currentUser.data?.avatar ? (
+                    {currentUser.data?.avatar ||
+                    currentUser.data?.data.avatar ? (
                       <img
-                        src={currentUser.data.avatar}
-                        alt={currentUser.data?.fullName}
+                        src={
+                          currentUser.data.avatar ||
+                          currentUser.data?.data.avatar
+                        }
+                        alt={currentUser.data?.fullName || "User"}
                         className="w-10 h-10 rounded-full object-cover"
+                        onError={handleImageError}
+                        onLoad={() => console.log("Image loaded successfully")}
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                        {currentUser.data?.fullName?.charAt(0)?.toUpperCase() ||
-                          "U"}
+                        {currentUser?.data?.fullName
+                          ?.charAt(0)
+                          ?.toUpperCase() || "U"}
                       </div>
                     )}
                     <div className="flex-1">

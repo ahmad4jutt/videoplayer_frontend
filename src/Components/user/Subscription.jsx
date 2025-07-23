@@ -8,7 +8,7 @@ import {
   User,
   Eye,
 } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/UseAuth";
 import {
   getUserChannelSubscriber,
@@ -16,6 +16,7 @@ import {
 } from "../../services/api";
 
 const Subscription = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("subscribers");
   const [subscribers, setSubscribers] = useState([]);
   const [subscribedChannels, setSubscribedChannels] = useState([]);
@@ -29,7 +30,7 @@ const Subscription = () => {
   const { token, currentUser } = useAuth(); // Get user from auth context
 
   // Get channelId from params (for subscribers tab)
-  const { channelId } = useParams();
+  const { channelId, userId } = useParams();
 
   const fetchSubscribers = async (page = 1) => {
     setLoading(true);
@@ -266,7 +267,10 @@ const Subscription = () => {
       </div>
     </div>
   );
-
+  const handleVideoClick = (userId) => {
+    // Navigate to video player page
+    navigate(`/channel/${channelId}`);
+  };
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -344,7 +348,9 @@ const Subscription = () => {
                       />
                     ))
                   : filteredData.map((channel) => (
-                      <ChannelCard key={channel._id} channel={channel} />
+                      <button onClick={() => handleVideoClick(channel._id)}>
+                        <ChannelCard key={channel._id} channel={channel} />
+                      </button>
                     ))}
               </div>
             )}

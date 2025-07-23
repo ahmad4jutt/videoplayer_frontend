@@ -1,1 +1,79 @@
 @import "tailwindcss";
+/* Add this to your global CSS file (e.g., index.css or App.css) */
+
+/* Light theme variables (default) */
+:root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-sidebar: #1e293b;
+  --bg-sidebar-item: transparent;
+  --bg-sidebar-item-hover: #f1f5f9;
+  --bg-sidebar-item-active: #1e293b;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-tertiary: #94a3b8;
+  --text-white: #ffffff;
+  --border-color: #e2e8f0;
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
+/* Dark theme variables */
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-sidebar: #1e293b;
+  --bg-sidebar-item: transparent;
+  --bg-sidebar-item-hover: #334155;
+  --bg-sidebar-item-active: #475569;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-white: #ffffff;
+  --border-color: #475569;
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+}
+
+/* Base theme classes */
+.theme-bg-primary {
+  background-color: var(--bg-primary);
+}
+.theme-bg-secondary {
+  background-color: var(--bg-secondary);
+}
+.theme-bg-tertiary {
+  background-color: var(--bg-tertiary);
+}
+.theme-bg-sidebar {
+  background-color: var(--bg-sidebar);
+}
+.theme-text-primary {
+  color: var(--text-primary);
+}
+.theme-text-secondary {
+  color: var(--text-secondary);
+}
+.theme-text-tertiary {
+  color: var(--text-tertiary);
+}
+.theme-text-white {
+  color: var(--text-white);
+}
+.theme-border {
+  border-color: var(--border-color);
+}
+
+/* Hover states */
+.theme-hover-bg:hover {
+  background-color: var(--bg-sidebar-item-hover);
+}
+.theme-active-bg {
+  background-color: var(--bg-sidebar-item-active);
+}
+
+/* Transitions */
+.theme-transition {
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out,
+    border-color 0.2s ease-in-out;
+}

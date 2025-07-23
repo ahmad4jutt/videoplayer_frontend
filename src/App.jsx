@@ -32,7 +32,12 @@ import ProtectedRoute from "./Components/ProtectedRoutes";
 //layout
 import Layout from "./layoout/Layout";
 import LikedVideo from "./Components/video/LikedVideo";
+// subscription
+import Subscribers from "./Subscription/Subscribers";
+import SubscribedChannels from "./Subscription/SubscribedChannels";
 
+//admin
+import AdminRoutes from "./admin/AdminRoutes";
 function App() {
   return (
     <BrowserRouter>
@@ -45,7 +50,7 @@ function App() {
             path="/reset-password/:token"
             element={<ResetPasswordPage />}
           />
-
+          <Route path="/admin/*" element={<AdminRoutes />} />
           {/* All other routes with Layout */}
           <Route
             path="/*"
@@ -69,14 +74,14 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  {/* <Route
-                    path="/channel/:videoId"
+                  <Route
+                    path="/channel"
                     element={
                       <ProtectedRoute>
                         <ChannelVideoPage />
                       </ProtectedRoute>
                     }
-                  /> */}
+                  />
                   <Route
                     path="/channel/:userId"
                     element={
@@ -93,11 +98,28 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  <Route
+                  {/* <Route
                     path="/subscriptions/:channelId"
                     element={
                       <ProtectedRoute>
                         <Subscription />
+                      </ProtectedRoute>
+                    }
+                  /> */}
+                  <Route
+                    path="/subscribers/:channelId"
+                    element={
+                      <ProtectedRoute>
+                        <Subscribers />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/subscribed-channels"
+                    element={
+                      <ProtectedRoute>
+                        <SubscribedChannels />
                       </ProtectedRoute>
                     }
                   />
