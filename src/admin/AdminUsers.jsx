@@ -53,10 +53,13 @@ const AdminUsers = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionUser, setActionUser] = useState(null);
 
-  const { adminToken, user } = useAuth();
+  const { adminToken, currentAdmin } = useAuth();
 
   // Check if current user is super admin (you may need to adjust this based on your auth structure)
-  const isSuperAdmin = user?.role === "superadmin" || user?.isSuperAdmin;
+  const isSuperAdmin =
+    currentAdmin?.role === "superadmin" ||
+    currentAdmin?.data?.role.superadmin ||
+    currentAdmin?.data?.admin?.isSuperAdmin;
 
   // Fetch users
   const fetchUsers = async () => {
@@ -511,261 +514,385 @@ const AdminUsers = () => {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead
-                    className={`${isDarkMode ? "bg-gray-700" : "bg-gray-50"}`}
-                  >
-                    <tr>
-                      <th
-                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          isDarkMode ? "text-gray-300" : "text-gray-500"
-                        }`}
-                      >
-                        User
-                      </th>
-                      <th
-                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          isDarkMode ? "text-gray-300" : "text-gray-500"
-                        }`}
-                      >
-                        Status
-                      </th>
-                      <th
-                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-80 ${
-                          isDarkMode
-                            ? "text-gray-300 hover:bg-gray-600"
-                            : "text-gray-500 hover:bg-gray-100"
-                        }`}
-                        onClick={() => handleSort("createdAt")}
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>Joined</span>
-                          <Calendar className="w-3 h-3" />
-                        </div>
-                      </th>
-                      <th
-                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          isDarkMode ? "text-gray-300" : "text-gray-500"
-                        }`}
-                      >
-                        Watch History
-                      </th>
-                      <th
-                        className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
-                          isDarkMode ? "text-gray-300" : "text-gray-500"
-                        }`}
-                      >
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody
-                    className={`divide-y ${
-                      isDarkMode ? "divide-gray-700" : "divide-gray-200"
-                    }`}
-                  >
-                    {users.length > 0 ? (
-                      users.map((user) => (
-                        <tr
-                          key={user._id}
-                          className={`hover:${
-                            isDarkMode ? "bg-gray-700" : "bg-gray-50"
-                          } transition-colors`}
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <img
-                                className="h-10 w-10 rounded-full object-cover"
-                                src={user.avatar}
-                                alt={user.fullName}
-                                onError={(e) => {
-                                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                                    user.fullName
-                                  )}&background=random`;
-                                }}
-                              />
-                              <div className="ml-4">
-                                <div className="text-sm font-medium">
-                                  {user.fullName}
-                                </div>
-                                <div
-                                  className={`text-sm ${
-                                    isDarkMode
-                                      ? "text-gray-400"
-                                      : "text-gray-500"
-                                  }`}
-                                >
-                                  @{user.userName}
-                                </div>
-                                <div
-                                  className={`text-xs ${
-                                    isDarkMode
-                                      ? "text-gray-500"
-                                      : "text-gray-400"
-                                  } flex items-center mt-1`}
-                                >
-                                  <Mail className="w-3 h-3 mr-1" />
-                                  {user.email}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {getStatusBadge(
-                              user.isActive,
-                              user.deactivationReason
-                            )}
-                            {user.deactivationReason && (
-                              <div
-                                className={`text-xs mt-1 ${
-                                  isDarkMode ? "text-gray-400" : "text-gray-500"
-                                }`}
-                              >
-                                {user.deactivationReason}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm">
-                              {formatDate(user.createdAt)}
-                            </div>
-                            <div
-                              className={`text-xs ${
-                                isDarkMode ? "text-gray-400" : "text-gray-500"
-                              }`}
-                            >
-                              Last updated: {formatDate(user.updatedAt)}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium">
-                              {user.watchHistory?.length || 0} videos
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right">
-                            <div className="relative">
-                              <button
-                                onClick={() =>
-                                  setShowDropdown(
-                                    showDropdown === user._id ? null : user._id
-                                  )
-                                }
-                                disabled={actionLoading}
-                                className={`p-2 rounded-lg transition-colors ${
-                                  isDarkMode
-                                    ? "hover:bg-gray-700 text-gray-400"
-                                    : "hover:bg-gray-100 text-gray-600"
-                                } ${
-                                  actionLoading
-                                    ? "opacity-50 cursor-not-allowed"
-                                    : ""
-                                }`}
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-
-                              {showDropdown === user._id && (
-                                <div
-                                  className={`absolute right-0 mt-1 w-48 rounded-lg shadow-lg border z-10 ${
-                                    isDarkMode
-                                      ? "bg-gray-800 border-gray-700"
-                                      : "bg-white border-gray-200"
-                                  }`}
-                                >
-                                  <div className="py-1">
-                                    <button
-                                      onClick={() =>
-                                        handleUserAction("view", user._id)
-                                      }
-                                      disabled={loadingUserDetails}
-                                      className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center ${
-                                        isDarkMode
-                                          ? "hover:bg-gray-700 text-gray-300"
-                                          : "hover:bg-gray-100 text-gray-700"
-                                      } ${
-                                        loadingUserDetails
-                                          ? "opacity-50 cursor-not-allowed"
-                                          : ""
-                                      }`}
-                                    >
-                                      <Eye className="w-4 h-4 mr-2" />
-                                      {loadingUserDetails
-                                        ? "Loading..."
-                                        : "View Details"}
-                                    </button>
-                                    {user.isActive ? (
-                                      <button
-                                        onClick={() =>
-                                          handleUserAction(
-                                            "deactivate",
-                                            user._id
-                                          )
-                                        }
-                                        className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center ${
-                                          isDarkMode
-                                            ? "hover:bg-gray-700 text-red-400"
-                                            : "hover:bg-gray-100 text-red-600"
-                                        }`}
-                                      >
-                                        <UserX className="w-4 h-4 mr-2" />
-                                        Deactivate
-                                      </button>
-                                    ) : (
-                                      <button
-                                        onClick={() =>
-                                          handleUserAction("activate", user._id)
-                                        }
-                                        className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center ${
-                                          isDarkMode
-                                            ? "hover:bg-gray-700 text-green-400"
-                                            : "hover:bg-gray-100 text-green-600"
-                                        }`}
-                                      >
-                                        <UserCheck className="w-4 h-4 mr-2" />
-                                        Activate
-                                      </button>
-                                    )}
-
-                                    {/* Delete option - only for super admin */}
-                                    {isSuperAdmin && (
-                                      <button
-                                        onClick={() =>
-                                          handleUserAction("delete", user._id)
-                                        }
-                                        className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center ${
-                                          isDarkMode
-                                            ? "hover:bg-gray-700 text-red-400 border-t border-gray-700"
-                                            : "hover:bg-gray-100 text-red-600 border-t border-gray-200"
-                                        }`}
-                                      >
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Delete User
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="5" className="px-6 py-12 text-center">
-                          <div
-                            className={`text-sm ${
-                              isDarkMode ? "text-gray-400" : "text-gray-500"
+                {/* Users Table */}
+                <div
+                  className={`rounded-xl border overflow-hidden ${
+                    isDarkMode
+                      ? "bg-gray-800 border-gray-700"
+                      : "bg-white border-gray-200"
+                  }`}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full table-fixed">
+                          <thead
+                            className={`${
+                              isDarkMode ? "bg-gray-700" : "bg-gray-50"
                             }`}
                           >
-                            {searchTerm
-                              ? "No users found matching your search."
-                              : "No users found."}
+                            <tr>
+                              <th
+                                className={`w-80 px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                                  isDarkMode ? "text-gray-300" : "text-gray-500"
+                                }`}
+                              >
+                                User
+                              </th>
+                              <th
+                                className={`w-40 px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                                  isDarkMode ? "text-gray-300" : "text-gray-500"
+                                }`}
+                              >
+                                Status
+                              </th>
+                              <th
+                                className={`w-48 px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-opacity-80 ${
+                                  isDarkMode
+                                    ? "text-gray-300 hover:bg-gray-600"
+                                    : "text-gray-500 hover:bg-gray-100"
+                                }`}
+                                onClick={() => handleSort("createdAt")}
+                              >
+                                <div className="flex items-center space-x-1">
+                                  <span>Joined</span>
+                                  <Calendar className="w-3 h-3" />
+                                </div>
+                              </th>
+                              <th
+                                className={`w-32 px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                                  isDarkMode ? "text-gray-300" : "text-gray-500"
+                                }`}
+                              >
+                                Watch History
+                              </th>
+                              <th
+                                className={`w-24 px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
+                                  isDarkMode ? "text-gray-300" : "text-gray-500"
+                                }`}
+                              >
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody
+                            className={`divide-y ${
+                              isDarkMode ? "divide-gray-700" : "divide-gray-200"
+                            }`}
+                          >
+                            {users.length > 0 ? (
+                              users.map((user) => (
+                                <tr
+                                  key={user._id}
+                                  className={`hover:${
+                                    isDarkMode ? "bg-gray-700" : "bg-gray-50"
+                                  } transition-colors`}
+                                >
+                                  <td className="w-80 px-6 py-4">
+                                    <div className="flex items-center min-w-0">
+                                      <div className="flex-shrink-0">
+                                        <img
+                                          className="h-10 w-10 rounded-full object-cover"
+                                          src={user.avatar}
+                                          alt={user.fullName}
+                                          onError={(e) => {
+                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                              user.fullName
+                                            )}&background=random`;
+                                          }}
+                                        />
+                                      </div>
+                                      <div className="ml-4 min-w-0 flex-1">
+                                        <div className="text-sm font-medium truncate">
+                                          {user.fullName}
+                                        </div>
+                                        <div
+                                          className={`text-sm truncate ${
+                                            isDarkMode
+                                              ? "text-gray-400"
+                                              : "text-gray-500"
+                                          }`}
+                                        >
+                                          @{user.userName}
+                                        </div>
+                                        <div
+                                          className={`text-xs truncate ${
+                                            isDarkMode
+                                              ? "text-gray-500"
+                                              : "text-gray-400"
+                                          } flex items-center mt-1`}
+                                        >
+                                          <Mail className="w-3 h-3 mr-1 flex-shrink-0" />
+                                          <span className="truncate">
+                                            {user.email}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="w-40 px-6 py-4">
+                                    <div className="space-y-1">
+                                      {getStatusBadge(
+                                        user.isActive,
+                                        user.deactivationReason
+                                      )}
+                                      {user.deactivationReason && (
+                                        <div
+                                          className={`text-xs truncate ${
+                                            isDarkMode
+                                              ? "text-gray-400"
+                                              : "text-gray-500"
+                                          }`}
+                                          title={user.deactivationReason}
+                                        >
+                                          {user.deactivationReason}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="w-48 px-6 py-4">
+                                    <div className="text-sm">
+                                      {formatDate(user.createdAt)}
+                                    </div>
+                                    <div
+                                      className={`text-xs truncate ${
+                                        isDarkMode
+                                          ? "text-gray-400"
+                                          : "text-gray-500"
+                                      }`}
+                                    >
+                                      Last updated: {formatDate(user.updatedAt)}
+                                    </div>
+                                  </td>
+                                  <td className="w-32 px-6 py-4">
+                                    <div className="text-sm font-medium">
+                                      {user.watchHistory?.length || 0} videos
+                                    </div>
+                                  </td>
+                                  <td className="w-24 px-6 py-4 text-right">
+                                    <div className="relative">
+                                      <button
+                                        onClick={() =>
+                                          setShowDropdown(
+                                            showDropdown === user._id
+                                              ? null
+                                              : user._id
+                                          )
+                                        }
+                                        disabled={actionLoading}
+                                        className={`p-2 rounded-lg transition-colors ${
+                                          isDarkMode
+                                            ? "hover:bg-gray-700 text-gray-400"
+                                            : "hover:bg-gray-100 text-gray-600"
+                                        } ${
+                                          actionLoading
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : ""
+                                        }`}
+                                      >
+                                        <MoreVertical className="w-4 h-4" />
+                                      </button>
+
+                                      {showDropdown === user._id && (
+                                        <div
+                                          className={`absolute right-0 mt-1 w-48 rounded-lg shadow-lg border z-10 ${
+                                            isDarkMode
+                                              ? "bg-gray-800 border-gray-700"
+                                              : "bg-white border-gray-200"
+                                          }`}
+                                        >
+                                          <div className="py-1">
+                                            <button
+                                              onClick={() =>
+                                                handleUserAction(
+                                                  "view",
+                                                  user._id
+                                                )
+                                              }
+                                              disabled={loadingUserDetails}
+                                              className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center ${
+                                                isDarkMode
+                                                  ? "hover:bg-gray-700 text-gray-300"
+                                                  : "hover:bg-gray-100 text-gray-700"
+                                              } ${
+                                                loadingUserDetails
+                                                  ? "opacity-50 cursor-not-allowed"
+                                                  : ""
+                                              }`}
+                                            >
+                                              <Eye className="w-4 h-4 mr-2" />
+                                              {loadingUserDetails
+                                                ? "Loading..."
+                                                : "View Details"}
+                                            </button>
+                                            {user.isActive ? (
+                                              <button
+                                                onClick={() =>
+                                                  handleUserAction(
+                                                    "deactivate",
+                                                    user._id
+                                                  )
+                                                }
+                                                className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center ${
+                                                  isDarkMode
+                                                    ? "hover:bg-gray-700 text-red-400"
+                                                    : "hover:bg-gray-100 text-red-600"
+                                                }`}
+                                              >
+                                                <UserX className="w-4 h-4 mr-2" />
+                                                Deactivate
+                                              </button>
+                                            ) : (
+                                              <button
+                                                onClick={() =>
+                                                  handleUserAction(
+                                                    "activate",
+                                                    user._id
+                                                  )
+                                                }
+                                                className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center ${
+                                                  isDarkMode
+                                                    ? "hover:bg-gray-700 text-green-400"
+                                                    : "hover:bg-gray-100 text-green-600"
+                                                }`}
+                                              >
+                                                <UserCheck className="w-4 h-4 mr-2" />
+                                                Activate
+                                              </button>
+                                            )}
+
+                                            {/* Delete option - only for super admin */}
+                                            {isSuperAdmin && (
+                                              <button
+                                                onClick={() =>
+                                                  handleUserAction(
+                                                    "delete",
+                                                    user._id
+                                                  )
+                                                }
+                                                className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center ${
+                                                  isDarkMode
+                                                    ? "hover:bg-gray-700 text-red-400 border-t border-gray-700"
+                                                    : "hover:bg-gray-100 text-red-600 border-t border-gray-200"
+                                                }`}
+                                              >
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Delete User
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td
+                                  colSpan="5"
+                                  className="px-6 py-12 text-center"
+                                >
+                                  <div
+                                    className={`text-sm ${
+                                      isDarkMode
+                                        ? "text-gray-400"
+                                        : "text-gray-500"
+                                    }`}
+                                  >
+                                    {searchTerm
+                                      ? "No users found matching your search."
+                                      : "No users found."}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Pagination */}
+                      {pagination.totalPages > 1 && !searchTerm && (
+                        <div
+                          className={`px-6 py-4 border-t ${
+                            isDarkMode ? "border-gray-700" : "border-gray-200"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div
+                              className={`text-sm ${
+                                isDarkMode ? "text-gray-400" : "text-gray-600"
+                              }`}
+                            >
+                              Showing {(pagination.currentPage - 1) * 10 + 1} to{" "}
+                              {Math.min(
+                                pagination.currentPage * 10,
+                                pagination.totalUsers
+                              )}{" "}
+                              of {pagination.totalUsers} users
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() =>
+                                  setCurrentPage((prev) =>
+                                    Math.max(prev - 1, 1)
+                                  )
+                                }
+                                disabled={!pagination.hasPrevPage}
+                                className={`p-2 rounded-lg transition-colors ${
+                                  pagination.hasPrevPage
+                                    ? isDarkMode
+                                      ? "hover:bg-gray-700 text-gray-300"
+                                      : "hover:bg-gray-100 text-gray-700"
+                                    : isDarkMode
+                                    ? "text-gray-600 cursor-not-allowed"
+                                    : "text-gray-400 cursor-not-allowed"
+                                }`}
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+
+                              <span
+                                className={`px-3 py-1 rounded-lg text-sm ${
+                                  isDarkMode
+                                    ? "bg-gray-700 text-gray-300"
+                                    : "bg-gray-100 text-gray-700"
+                                }`}
+                              >
+                                {pagination.currentPage} of{" "}
+                                {pagination.totalPages}
+                              </span>
+
+                              <button
+                                onClick={() =>
+                                  setCurrentPage((prev) =>
+                                    Math.min(prev + 1, pagination.totalPages)
+                                  )
+                                }
+                                disabled={!pagination.hasNextPage}
+                                className={`p-2 rounded-lg transition-colors ${
+                                  pagination.hasNextPage
+                                    ? isDarkMode
+                                      ? "hover:bg-gray-700 text-gray-300"
+                                      : "hover:bg-gray-100 text-gray-700"
+                                    : isDarkMode
+                                    ? "text-gray-600 cursor-not-allowed"
+                                    : "text-gray-400 cursor-not-allowed"
+                                }`}
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Pagination */}
@@ -1216,9 +1343,9 @@ const AdminUsers = () => {
 
       {/* Delete User Modal (Super Admin Only) */}
       {showDeleteModal && actionUser && isSuperAdmin && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div
-            className={`rounded-xl shadow-2xl max-w-md w-full ${
+            className={`rounded-xl shadow-2xl w-full max-w-md my-8 ${
               isDarkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"
             }`}
           >
@@ -1250,8 +1377,8 @@ const AdminUsers = () => {
               </div>
             </div>
 
-            {/* Modal Content */}
-            <div className="p-6">
+            {/* Modal Content - Made scrollable */}
+            <div className="p-6 max-h-96 overflow-y-auto">
               <div className="mb-4">
                 <p className="text-sm text-gray-600 mb-2">
                   You are about to permanently delete:
@@ -1338,7 +1465,7 @@ const AdminUsers = () => {
               </div>
             </div>
 
-            {/* Modal Footer */}
+            {/* Modal Footer - Fixed at bottom */}
             <div
               className={`px-6 py-4 border-t flex justify-end space-x-3 ${
                 isDarkMode ? "border-gray-700" : "border-gray-200"

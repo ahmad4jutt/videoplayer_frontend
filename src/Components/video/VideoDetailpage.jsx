@@ -12,9 +12,11 @@ import {
   toggleSubscription,
   getSubscribedChannels,
   getUserChannelSubscriber,
+  isUserSubscribed,
+  getTotalSubscribers,
 } from "../../services/api";
 import { useAuth } from "../../hooks/UseAuth";
-
+import { useTheme } from "../../context/ThemeContext";
 import {
   Eye,
   Clock,
@@ -39,8 +41,9 @@ import {
 } from "lucide-react";
 
 const VideoDetailpage = () => {
-  const { videoId } = useParams();
+  const { videoId, channelId } = useParams();
   const { currentUser, token } = useAuth();
+  const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
   // Add ref to track if video data has been fetched
@@ -78,6 +81,11 @@ const VideoDetailpage = () => {
   const [subscriptionError, setSubscriptionError] = useState(null);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [subscriberLoading, setSubscriberLoading] = useState(false);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
+  // Handle image error for avatars
+  const handleImageError = (e) => {
+    console.log("Image failed to load:", e.target.src);
+  };
 
   // FIXED: Fetch video like status function
   const fetchVideoLikeStatus = useCallback(async () => {
@@ -133,6 +141,154 @@ const VideoDetailpage = () => {
     [token]
   );
 
+  // FIXED: Fetch subscriber count with better error handling
+  const fetchSubscriberCount = useCallback(
+    async (channelId) => {
+      if (!token || !channelId) return;
+
+      try {
+        setSubscriberLoading(true);
+        console.log("Fetching subscriber count for channel:", channelId);
+
+        // Use the new getTotalSubscribers API
+        const response = await getTotalSubscribers(token, channelId);
+        console.log("Subscriber count response:", response);
+
+        // Get the count from the response (based on your controller structure)
+        const count = response?.data?.data?.totalSubscribers || 0;
+
+        console.log("Setting subscriber count to:", count);
+        setSubscriberCount(count);
+      } catch (err) {
+        console.error("Error fetching subscriber count:", err);
+        setSubscriberCount(0);
+      } finally {
+        setSubscriberLoading(false);
+      }
+    },
+    [token]
+  );
+  const fetchSubscriptionStatus = useCallback(
+    async (channelId) => {
+      if (!token || !channelId || !currentUser?.data?._id) {
+        setIsLoadingSubscription(false);
+        return;
+      }
+      try {
+        setSubscriptionError(null);
+        setIsLoadingSubscription(true);
+        console.log("Fetching subscription status for channel:", channelId);
+
+        const response = await isUserSubscribed(token, channelId);
+        console.log("Subscription status response:", response);
+
+        const subscriptionData = response?.data?.data;
+        const isChannelSubscribed = subscriptionData?.isSubscribed || false;
+        const isOwnChannel = subscriptionData?.isOwnChannel || false;
+
+        console.log("Is subscribed:", isChannelSubscribed);
+        console.log("Is own channel:", isOwnChannel);
+
+        setIsSubscribed(isChannelSubscribed);
+      } catch (err) {
+        console.error("Error fetching subscription status:", err);
+        setIsSubscribed(false);
+        setSubscriptionError(
+          err.message || "Failed to fetch subscription status"
+        );
+      } finally {
+        setIsLoadingSubscription(false);
+      }
+    },
+    [token, currentUser?.data?._id]
+  );
+
+  useEffect(() => {
+    if (channelId) {
+      fetchSubscriptionStatus(channelId);
+    }
+  }, [channelId, fetchSubscriptionStatus]);
+  // FIXED: Handle subscription with immediate UI update and proper refresh
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!token || !video?.owner?._id || subscribing) return;
+
+    const previousSubscribedState = isSubscribed;
+    const previousSubscriberCount = subscriberCount;
+
+    try {
+      setSubscribing(true);
+      setSubscriptionError(null);
+
+      console.log("Toggling subscription for channel:", video.owner._id);
+      console.log("Current subscription state:", isSubscribed);
+
+      // Optimistically update UI
+      const newSubscribedState = !previousSubscribedState;
+      setIsSubscribed(newSubscribedState);
+      setSubscriberCount((prev) =>
+        newSubscribedState ? prev + 1 : Math.max(0, prev - 1)
+      );
+
+      // Call the toggle subscription API
+      const response = await toggleSubscription(token, video.owner._id);
+      console.log("Toggle subscription response:", response);
+
+      const responseData = response?.data?.data || response?.data;
+
+      // Update with server response if available
+      if (responseData && typeof responseData.subscribed === "boolean") {
+        setIsSubscribed(responseData.subscribed);
+
+        // Update subscriber count based on server response
+        if (responseData.subscribed && !previousSubscribedState) {
+          // User just subscribed
+          setSubscriberCount(previousSubscriberCount + 1);
+        } else if (!responseData.subscribed && previousSubscribedState) {
+          // User just unsubscribed
+          setSubscriberCount(Math.max(0, previousSubscriberCount - 1));
+        }
+      }
+
+      // Refresh data from server after a short delay to ensure consistency
+      setTimeout(async () => {
+        try {
+          await Promise.all([
+            fetchSubscriptionStatus(video.owner._id),
+            fetchSubscriberCount(video.owner._id),
+          ]);
+          console.log("Refreshed subscription status and count after toggle");
+        } catch (refreshError) {
+          console.error(
+            "Error refreshing data after subscription toggle:",
+            refreshError
+          );
+        }
+      }, 500);
+    } catch (err) {
+      console.error("Error toggling subscription:", err);
+
+      // Revert state on error
+      setIsSubscribed(previousSubscribedState);
+      setSubscriberCount(previousSubscriberCount);
+
+      setSubscriptionError(
+        err.response?.data?.message || "Failed to update subscription"
+      );
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
+  const formatSubscriberCount = (count) => {
+    if (!count || count === 0) return "0 subscribers";
+    if (count === 1) return "1 subscriber";
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M subscribers`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K subscribers`;
+    return `${count} subscribers`;
+  };
   // FIXED: Fetch video data - only called once on mount
   const fetchVideoData = useCallback(async () => {
     if (!token || !videoId || hasInitialized.current) return;
@@ -167,9 +323,10 @@ const VideoDetailpage = () => {
       setLiked(likeStatus.liked);
       setLikeCount(likeStatus.likeCount);
 
-      // Fetch subscription status
+      // Fetch subscription status and subscriber count
       if (currentUser?.data?._id && videoData.owner?._id) {
         await fetchSubscriptionStatus(videoData.owner._id);
+        await fetchSubscriberCount(videoData.owner._id);
       }
     } catch (err) {
       console.error("Error fetching video:", err);
@@ -177,7 +334,7 @@ const VideoDetailpage = () => {
     } finally {
       setLoading(false);
     }
-  }, [token, videoId, currentUser, fetchVideoLikeStatus]);
+  }, [token, videoId, currentUser, fetchVideoLikeStatus, fetchSubscriberCount]);
 
   // FIXED: Fetch comments with proper like status
   const fetchVideoComments = useCallback(async () => {
@@ -212,32 +369,6 @@ const VideoDetailpage = () => {
   }, [token, videoId, commentsLoading, fetchCommentLikes]);
 
   // FIXED: Subscription status fetch
-  const fetchSubscriptionStatus = useCallback(
-    async (channelId) => {
-      if (!token || !channelId || !currentUser?.data?._id) return;
-
-      try {
-        setSubscriptionError(null);
-        const response = await getSubscribedChannels(
-          token,
-          currentUser.data._id
-        );
-        const subscribedChannels =
-          response?.data?.data?.subscribedChannels || [];
-
-        const isChannelSubscribed = subscribedChannels.some(
-          (sub) =>
-            sub.channelDetails?._id === channelId || sub.channel === channelId
-        );
-
-        setIsSubscribed(isChannelSubscribed);
-      } catch (err) {
-        console.error("Error fetching subscription status:", err);
-        setIsSubscribed(false);
-      }
-    },
-    [token, currentUser]
-  );
 
   // FIXED: Like handler with proper state management
   const handleLike = async (e) => {
@@ -307,109 +438,7 @@ const VideoDetailpage = () => {
       handleLike(e);
     }
   };
-  const fetchSubscriberCount = useCallback(
-    async (channelId) => {
-      if (!token || !channelId) return;
 
-      try {
-        setSubscriberLoading(true);
-        const response = await getUserChannelSubscriber(token, channelId);
-        const count =
-          response?.data?.data?.subscriberCount ||
-          response?.data?.subscriberCount ||
-          0;
-        setSubscriberCount(count);
-      } catch (err) {
-        console.error("Error fetching subscriber count:", err);
-        setSubscriberCount(0);
-      } finally {
-        setSubscriberLoading(false);
-      }
-    },
-    [token]
-  );
-  useEffect(() => {
-    if (video?.owner?._id && currentUser?.data?._id) {
-      console.log(
-        "Fetching subscription status for video owner:",
-        video.owner._id
-      );
-      fetchSubscriptionStatus(video.owner._id);
-    }
-  }, [video?.owner?._id, currentUser?.data?._id, fetchSubscriptionStatus]);
-
-  useEffect(() => {
-    if (video?.owner?._id) {
-      console.log(
-        "Fetching subscriber count for video owner:",
-        video.owner._id
-      );
-      fetchSubscriberCount(video.owner._id);
-    }
-  }, [video?.owner?._id, fetchSubscriberCount]);
-  // Handle subscription
-  const handleSubscribe = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!token || !video?.owner?._id || subscribing) return;
-
-    const previousSubscribedState = isSubscribed;
-    const previousSubscriberCount = subscriberCount;
-
-    try {
-      setSubscribing(true);
-      setSubscriptionError(null);
-
-      console.log("Toggling subscription for channel:", video.owner._id);
-      console.log("Current subscription state:", isSubscribed);
-
-      const response = await toggleSubscription(token, video.owner._id);
-      console.log("Toggle subscription response:", response);
-
-      const responseData = response?.data?.data || response?.data;
-
-      if (responseData && typeof responseData.subscribed === "boolean") {
-        // Use server response
-        setIsSubscribed(responseData.subscribed);
-        setSubscriberCount((prev) =>
-          responseData.subscribed ? prev + 1 : Math.max(0, prev - 1)
-        );
-      } else {
-        // Fallback: toggle current state
-        const newSubscribedState = !previousSubscribedState;
-        setIsSubscribed(newSubscribedState);
-        setSubscriberCount((prev) =>
-          newSubscribedState ? prev + 1 : Math.max(0, prev - 1)
-        );
-      }
-
-      // Re-fetch subscription status to ensure consistency
-      setTimeout(() => {
-        fetchSubscriptionStatus(video.owner._id);
-        fetchSubscriberCount(video.owner._id);
-      }, 500);
-    } catch (err) {
-      console.error("Error toggling subscription:", err);
-
-      // Revert state on error
-      setIsSubscribed(previousSubscribedState);
-      setSubscriberCount(previousSubscriberCount);
-
-      setSubscriptionError(
-        err.response?.data?.message || "Failed to update subscription"
-      );
-    } finally {
-      setSubscribing(false);
-    }
-  };
-  const formatSubscriberCount = (count) => {
-    if (!count || count === 0) return "0 subscribers";
-    if (count === 1) return "1 subscriber";
-    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M subscribers`;
-    if (count >= 1000) return `${(count / 1000).toFixed(1)}K subscribers`;
-    return `${count} subscribers`;
-  };
   // FIXED: Comment like handler
   const handleToggleCommentLike = async (commentId, e) => {
     if (e) {
@@ -615,8 +644,35 @@ const VideoDetailpage = () => {
 
   // FIXED: Reset state when videoId changes
   useEffect(() => {
+    if (!videoId || !video?.owner?._id) return;
+
+    // Initialize data when video changes
+    const initializeVideoData = async () => {
+      try {
+        console.log("Initializing video data for:", videoId);
+
+        // Reset states first
+        setIsSubscribed(false);
+        setSubscriberCount(0);
+        setSubscriptionError(null);
+        setSubscriberLoading(true);
+
+        // Fetch both subscription status and subscriber count
+        await Promise.all([
+          fetchSubscriptionStatus(video.owner._id),
+          fetchSubscriberCount(video.owner._id),
+        ]);
+
+        console.log("Video data initialization complete");
+      } catch (error) {
+        console.error("Error initializing video data:", error);
+      }
+    };
+
+    initializeVideoData();
+
+    // Cleanup function
     return () => {
-      // Cleanup function to reset refs and states when component unmounts or videoId changes
       hasInitialized.current = false;
       viewCountedRef.current = false;
       setLiked(false);
@@ -627,22 +683,55 @@ const VideoDetailpage = () => {
       setCommentsError(null);
       setIsSubscribed(false);
       setSubscriptionError(null);
+      setSubscriberCount(0);
+      setSubscriberLoading(false);
     };
-  }, [videoId]);
+  }, [
+    videoId,
+    video?.owner?._id,
+    fetchSubscriptionStatus,
+    fetchSubscriberCount,
+  ]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div
+        className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
+      >
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="animate-pulse">
-            <div className="bg-gray-300 dark:bg-gray-700 aspect-video rounded-lg mb-6"></div>
-            <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded mb-4"></div>
-            <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mb-4"></div>
+            <div
+              className={`${
+                isDarkMode ? "bg-gray-700" : "bg-gray-300"
+              } aspect-video rounded-lg mb-6`}
+            ></div>
+            <div
+              className={`h-6 ${
+                isDarkMode ? "bg-gray-700" : "bg-gray-300"
+              } rounded mb-4`}
+            ></div>
+            <div
+              className={`h-4 ${
+                isDarkMode ? "bg-gray-700" : "bg-gray-300"
+              } rounded w-3/4 mb-4`}
+            ></div>
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+              <div
+                className={`w-12 h-12 ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-300"
+                } rounded-full`}
+              ></div>
               <div className="flex-1">
-                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
-                <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
+                <div
+                  className={`h-4 ${
+                    isDarkMode ? "bg-gray-700" : "bg-gray-300"
+                  } rounded mb-2`}
+                ></div>
+                <div
+                  className={`h-3 ${
+                    isDarkMode ? "bg-gray-700" : "bg-gray-300"
+                  } rounded w-1/2`}
+                ></div>
               </div>
             </div>
           </div>
@@ -653,13 +742,29 @@ const VideoDetailpage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg max-w-md mx-4">
+      <div
+        className={`min-h-screen ${
+          isDarkMode ? "bg-gray-900" : "bg-gray-50"
+        } flex items-center justify-center`}
+      >
+        <div
+          className={`text-center p-8 ${
+            isDarkMode ? "bg-gray-800" : "bg-white"
+          } rounded-xl shadow-lg max-w-md mx-4`}
+        >
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+          <h2
+            className={`text-2xl font-bold ${
+              isDarkMode ? "text-white" : "text-gray-800"
+            } mb-2`}
+          >
             Video Not Found
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <p
+            className={`${isDarkMode ? "text-gray-400" : "text-gray-600"} mb-4`}
+          >
+            {error}
+          </p>
           <button
             onClick={() => navigate(-1)}
             className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors duration-200"
@@ -673,13 +778,27 @@ const VideoDetailpage = () => {
 
   if (!video) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg max-w-md mx-4">
+      <div
+        className={`min-h-screen ${
+          isDarkMode ? "bg-gray-900" : "bg-gray-50"
+        } flex items-center justify-center`}
+      >
+        <div
+          className={`text-center p-8 ${
+            isDarkMode ? "bg-gray-800" : "bg-white"
+          } rounded-xl shadow-lg max-w-md mx-4`}
+        >
           <div className="text-yellow-500 text-6xl mb-4">📹</div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+          <h2
+            className={`text-2xl font-bold ${
+              isDarkMode ? "text-white" : "text-gray-800"
+            } mb-2`}
+          >
             No Video Data
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <p
+            className={`${isDarkMode ? "text-gray-400" : "text-gray-600"} mb-4`}
+          >
             Video data is not available
           </p>
           <button
@@ -698,14 +817,22 @@ const VideoDetailpage = () => {
       </div>
     );
   }
-
+  const LoadingSpinner = () => (
+    <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+  );
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div
+      className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
+    >
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white mb-6 transition-colors"
+          className={`flex items-center gap-2 ${
+            isDarkMode
+              ? "text-gray-400 hover:text-white"
+              : "text-gray-600 hover:text-gray-800"
+          } mb-6 transition-colors`}
         >
           <ArrowLeft size={20} />
           Back to Videos
@@ -729,14 +856,26 @@ const VideoDetailpage = () => {
             </div>
 
             {/* Video Info */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            <div
+              className={`${
+                isDarkMode ? "bg-gray-800" : "bg-white"
+              } rounded-lg shadow-lg p-6 mb-6`}
+            >
+              <h1
+                className={`text-2xl font-bold ${
+                  isDarkMode ? "text-white" : "text-gray-900"
+                } mb-4`}
+              >
                 {video.title}
               </h1>
 
               {/* Video Stats */}
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
+                <div
+                  className={`flex items-center gap-6 text-sm ${
+                    isDarkMode ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
                   <div className="flex items-center gap-1">
                     <Eye size={16} />
                     <span>{formatViews(video.views)} views</span>
@@ -759,7 +898,11 @@ const VideoDetailpage = () => {
                     className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
                       liked
                         ? "bg-blue-500 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        : `${
+                            isDarkMode
+                              ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`
                     } ${likesLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <ThumbsUp size={16} />
@@ -772,7 +915,11 @@ const VideoDetailpage = () => {
                     className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
                       disliked
                         ? "bg-red-500 text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        : `${
+                            isDarkMode
+                              ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`
                     } ${likesLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <ThumbsDown size={16} />
@@ -781,13 +928,23 @@ const VideoDetailpage = () => {
 
                   <button
                     onClick={handleShare}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+                      isDarkMode
+                        ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    } transition-colors`}
                   >
                     <Share2 size={16} />
                     <span>Share</span>
                   </button>
 
-                  <button className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                  <button
+                    className={`p-2 rounded-full ${
+                      isDarkMode
+                        ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    } transition-colors`}
+                  >
                     <MoreHorizontal size={16} />
                   </button>
                 </div>
@@ -795,13 +952,23 @@ const VideoDetailpage = () => {
 
               {/* Like Error Display */}
               {likeError && (
-                <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                <div
+                  className={`mb-4 p-3 ${
+                    isDarkMode
+                      ? "bg-red-900 text-red-300"
+                      : "bg-red-100 text-red-700"
+                  } rounded-lg text-sm`}
+                >
                   {likeError}
                 </div>
               )}
 
               {/* Creator Info */}
-              <div className="flex items-center justify-between border-t dark:border-gray-700 pt-6">
+              <div
+                className={`flex items-center justify-between border-t ${
+                  isDarkMode ? "border-gray-700" : "border-gray-200"
+                } pt-6`}
+              >
                 <Link to={`/channel/${video.owner?._id}`}>
                   <div className="flex items-center gap-4">
                     {video.owner?.avatar ? (
@@ -816,16 +983,28 @@ const VideoDetailpage = () => {
                       </div>
                     )}
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                      <h3
+                        className={`font-semibold ${
+                          isDarkMode ? "text-white" : "text-gray-900"
+                        }`}
+                      >
                         {video.owner?.fullName || "Unknown Creator"}
                       </h3>
                       {subscriberLoading ? (
-                        <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                        <span
+                          className={`text-sm ${
+                            isDarkMode ? "text-gray-400" : "text-gray-600"
+                          } flex items-center gap-1`}
+                        >
                           <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin inline-block"></span>
                           Loading...
                         </span>
                       ) : (
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <p
+                          className={`text-sm ${
+                            isDarkMode ? "text-gray-400" : "text-gray-600"
+                          }`}
+                        >
                           {formatSubscriberCount(subscriberCount)}
                         </p>
                       )}
@@ -834,17 +1013,28 @@ const VideoDetailpage = () => {
                 </Link>
                 <button
                   onClick={handleSubscribe}
-                  disabled={subscribing}
+                  disabled={subscribing || isLoadingSubscription}
                   className={`px-6 py-2 rounded-full font-medium transition-colors ${
-                    isSubscribed
+                    isLoadingSubscription
+                      ? "bg-gray-400 text-white" // Show neutral color while loading
+                      : isSubscribed
                       ? "bg-gray-500 hover:bg-gray-600 text-white"
                       : "bg-red-500 hover:bg-red-600 text-white"
-                  } ${subscribing ? "opacity-50 cursor-not-allowed" : ""}`}
+                  } ${
+                    subscribing || isLoadingSubscription
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
                 >
                   {subscribing ? (
                     <>
                       <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                       Loading...
+                    </>
+                  ) : isLoadingSubscription ? (
+                    <>
+                      <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Checking...
                     </>
                   ) : (
                     <>{isSubscribed ? "Subscribed" : "Subscribe"}</>
@@ -854,7 +1044,13 @@ const VideoDetailpage = () => {
 
               {/* Subscription Error Display */}
               {subscriptionError && (
-                <div className="mt-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                <div
+                  className={`mt-4 p-3 ${
+                    isDarkMode
+                      ? "bg-red-900 text-red-300"
+                      : "bg-red-100 text-red-700"
+                  } rounded-lg text-sm`}
+                >
                   {subscriptionError}
                 </div>
               )}
@@ -863,13 +1059,25 @@ const VideoDetailpage = () => {
               <div className="mt-6">
                 <button
                   onClick={() => setShowDescription(!showDescription)}
-                  className="flex items-center gap-2 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                  className={`flex items-center gap-2 ${
+                    isDarkMode
+                      ? "text-blue-400 hover:text-blue-300"
+                      : "text-blue-500 hover:text-blue-600"
+                  } font-medium`}
                 >
                   {showDescription ? "Hide Description" : "Show Description"}
                 </button>
                 {showDescription && (
-                  <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                  <div
+                    className={`mt-4 p-4 ${
+                      isDarkMode ? "bg-gray-700" : "bg-gray-50"
+                    } rounded-lg`}
+                  >
+                    <p
+                      className={`${
+                        isDarkMode ? "text-gray-300" : "text-gray-700"
+                      } whitespace-pre-wrap`}
+                    >
                       {video.description || "No description available."}
                     </p>
                   </div>
@@ -878,8 +1086,16 @@ const VideoDetailpage = () => {
             </div>
 
             {/* Comments Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <div
+              className={`${
+                isDarkMode ? "bg-gray-800" : "bg-white"
+              } rounded-lg shadow-lg p-6`}
+            >
+              <h3
+                className={`text-xl font-semibold ${
+                  isDarkMode ? "text-white" : "text-gray-900"
+                } mb-6 flex items-center gap-2`}
+              >
                 <MessageCircle size={20} />
                 Comments ({comments.length})
               </h3>
@@ -912,7 +1128,11 @@ const VideoDetailpage = () => {
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         placeholder="Add a comment..."
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        className={`w-full p-3 border ${
+                          isDarkMode
+                            ? "border-gray-600 bg-gray-700 text-white placeholder-gray-400"
+                            : "border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-500"
+                        } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none`}
                         rows="3"
                         disabled={addingComment}
                       />
@@ -920,7 +1140,11 @@ const VideoDetailpage = () => {
                         <button
                           type="button"
                           onClick={() => setNewComment("")}
-                          className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors"
+                          className={`px-4 py-2 ${
+                            isDarkMode
+                              ? "text-gray-400 hover:text-white"
+                              : "text-gray-600 hover:text-gray-800"
+                          } transition-colors`}
                           disabled={addingComment}
                         >
                           Cancel
@@ -950,7 +1174,13 @@ const VideoDetailpage = () => {
 
               {/* Comments Error Display */}
               {commentsError && (
-                <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                <div
+                  className={`mb-4 p-3 ${
+                    isDarkMode
+                      ? "bg-red-900 text-red-300"
+                      : "bg-red-100 text-red-700"
+                  } rounded-lg text-sm`}
+                >
                   {commentsError}
                 </div>
               )}
@@ -959,7 +1189,11 @@ const VideoDetailpage = () => {
               {commentsLoading && (
                 <div className="flex items-center justify-center py-8">
                   <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                  <span
+                    className={`ml-2 ${
+                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
                     Loading comments...
                   </span>
                 </div>
@@ -968,7 +1202,11 @@ const VideoDetailpage = () => {
               {/* Comments List */}
               <div className="space-y-4">
                 {comments.length === 0 && !commentsLoading ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <div
+                    className={`text-center py-8 ${
+                      isDarkMode ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     <MessageCircle
                       size={48}
                       className="mx-auto mb-4 opacity-50"
@@ -979,7 +1217,9 @@ const VideoDetailpage = () => {
                   comments.map((comment) => (
                     <div
                       key={comment._id}
-                      className="flex gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                      className={`flex gap-3 p-4 ${
+                        isDarkMode ? "bg-gray-700" : "bg-gray-50"
+                      } rounded-lg`}
                     >
                       {comment.owner?.avatar ? (
                         <img
@@ -996,10 +1236,18 @@ const VideoDetailpage = () => {
 
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-medium text-gray-900 dark:text-white">
+                          <h4
+                            className={`font-medium ${
+                              isDarkMode ? "text-white" : "text-gray-900"
+                            }`}
+                          >
                             {comment.owner?.fullName || "Anonymous"}
                           </h4>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                          <span
+                            className={`text-xs ${
+                              isDarkMode ? "text-gray-400" : "text-gray-500"
+                            }`}
+                          >
                             {formatDate(comment.createdAt)}
                           </span>
                         </div>
@@ -1011,7 +1259,11 @@ const VideoDetailpage = () => {
                               onChange={(e) =>
                                 setEditingCommentText(e.target.value)
                               }
-                              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              className={`w-full p-2 border ${
+                                isDarkMode
+                                  ? "border-gray-600 bg-gray-800 text-white"
+                                  : "border-gray-300 bg-white text-gray-900"
+                              } rounded`}
                               rows="2"
                             />
                             <div className="flex gap-2">
@@ -1035,7 +1287,11 @@ const VideoDetailpage = () => {
                             </div>
                           </div>
                         ) : (
-                          <p className="text-gray-700 dark:text-gray-300 mb-3">
+                          <p
+                            className={`${
+                              isDarkMode ? "text-gray-300" : "text-gray-700"
+                            } mb-3`}
+                          >
                             {comment.content}
                           </p>
                         )}
@@ -1048,7 +1304,11 @@ const VideoDetailpage = () => {
                             className={`flex items-center gap-1 text-sm transition-colors ${
                               comment.isLiked
                                 ? "text-blue-500"
-                                : "text-gray-500 dark:text-gray-400 hover:text-blue-500"
+                                : `${
+                                    isDarkMode
+                                      ? "text-gray-400 hover:text-blue-500"
+                                      : "text-gray-500 hover:text-blue-500"
+                                  }`
                             }`}
                           >
                             <ThumbsUp size={14} />
@@ -1062,7 +1322,11 @@ const VideoDetailpage = () => {
                                   setEditingCommentId(comment._id);
                                   setEditingCommentText(comment.content);
                                 }}
-                                className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
+                                className={`flex items-center gap-1 text-sm ${
+                                  isDarkMode
+                                    ? "text-gray-400 hover:text-blue-500"
+                                    : "text-gray-500 hover:text-blue-500"
+                                } transition-colors`}
                               >
                                 <Edit size={14} />
                                 Edit
@@ -1072,7 +1336,11 @@ const VideoDetailpage = () => {
                                   handleDeleteComment(comment._id, e)
                                 }
                                 disabled={deletingCommentId === comment._id}
-                                className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                                className={`flex items-center gap-1 text-sm ${
+                                  isDarkMode
+                                    ? "text-gray-400 hover:text-red-500"
+                                    : "text-gray-500 hover:text-red-500"
+                                } transition-colors disabled:opacity-50`}
                               >
                                 {deletingCommentId === comment._id ? (
                                   <>
@@ -1099,45 +1367,79 @@ const VideoDetailpage = () => {
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <div
+              className={`${
+                isDarkMode ? "bg-gray-800" : "bg-white"
+              } rounded-lg shadow-lg p-6`}
+            >
+              <h3
+                className={`text-lg font-semibold ${
+                  isDarkMode ? "text-white" : "text-gray-900"
+                } mb-4`}
+              >
                 Video Details
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <label
+                    className={`text-sm font-medium ${
+                      isDarkMode ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     Duration
                   </label>
-                  <p className="text-gray-900 dark:text-white">
+                  <p
+                    className={`${isDarkMode ? "text-white" : "text-gray-900"}`}
+                  >
                     {formatDuration(video.duration)}
                   </p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <label
+                    className={`text-sm font-medium ${
+                      isDarkMode ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     Views
                   </label>
-                  <p className="text-gray-900 dark:text-white">
+                  <p
+                    className={`${isDarkMode ? "text-white" : "text-gray-900"}`}
+                  >
                     {formatViews(video.views)}
                   </p>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <label
+                    className={`text-sm font-medium ${
+                      isDarkMode ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     Published
                   </label>
-                  <p className="text-gray-900 dark:text-white">
+                  <p
+                    className={`${isDarkMode ? "text-white" : "text-gray-900"}`}
+                  >
                     {formatDate(video.createdAt)}
                   </p>
                 </div>
 
                 {video.owner && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <label
+                      className={`text-sm font-medium ${
+                        isDarkMode ? "text-gray-400" : "text-gray-500"
+                      }`}
+                    >
                       Creator
                     </label>
-                    <p className="text-gray-900 dark:text-white">
+                    <p
+                      className={`${
+                        isDarkMode ? "text-white" : "text-gray-900"
+                      }`}
+                    >
                       {video.owner.fullName}
                     </p>
                   </div>
@@ -1154,12 +1456,24 @@ const VideoDetailpage = () => {
                   Share Video
                 </button>
 
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                <button
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${
+                    isDarkMode
+                      ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  } rounded-lg transition-colors`}
+                >
                   <Download size={16} />
                   Download
                 </button>
 
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800 rounded-lg transition-colors">
+                <button
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${
+                    isDarkMode
+                      ? "bg-red-900 text-red-300 hover:bg-red-800"
+                      : "bg-red-100 text-red-700 hover:bg-red-200"
+                  } rounded-lg transition-colors`}
+                >
                   <Flag size={16} />
                   Report
                 </button>

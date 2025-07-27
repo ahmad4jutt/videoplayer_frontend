@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-
+import { ThemeProvider } from "./context/ThemeContext";
 //auth
 import ResetPasswordPage from "./Components/auth/ResetPasswordPage";
 import Loginpage from "./Components/auth/Loginpage";
@@ -19,6 +19,7 @@ import Videopage from "./Components/video/Videopage";
 import VideoDetailpage from "./Components/video/VideoDetailpage";
 import ChannelVideoPage from "./Components/video/ChannelVideoPage";
 import UserChannelPage from "./Components/video/UserChannelPage";
+import { SearchProvider } from "./context/SearchContext";
 
 //playlist
 import CreatePlaylist from "./Components/playlist/CreatePlaylist";
@@ -42,63 +43,65 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          {/* Auth routes - No Layout (typically full screen) */}
-          <Route path="/login" element={<Loginpage />} />
-          <Route path="/register" element={<Regiserpage />} />
-          <Route
-            path="/reset-password/:token"
-            element={<ResetPasswordPage />}
-          />
-          <Route path="/admin/*" element={<AdminRoutes />} />
-          {/* All other routes with Layout */}
-          <Route
-            path="/*"
-            element={
-              <Layout>
-                <Routes>
-                  {/* Protected routes */}
-                  <Route
-                    path="/"
-                    element={
-                      <ProtectedRoute>
-                        <Homepage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/upload"
-                    element={
-                      <ProtectedRoute>
-                        <Videopage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/channel"
-                    element={
-                      <ProtectedRoute>
-                        <ChannelVideoPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/channel/:userId"
-                    element={
-                      <ProtectedRoute>
-                        <UserChannelPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/history"
-                    element={
-                      <ProtectedRoute>
-                        <History />
-                      </ProtectedRoute>
-                    }
-                  />
-                  {/* <Route
+        <ThemeProvider>
+          <SearchProvider>
+            <Routes>
+              {/* Auth routes - No Layout (typically full screen) */}
+              <Route path="/login" element={<Loginpage />} />
+              <Route path="/register" element={<Regiserpage />} />
+              <Route
+                path="/reset-password/:token"
+                element={<ResetPasswordPage />}
+              />
+              <Route path="/admin/*" element={<AdminRoutes />} />
+              {/* All other routes with Layout */}
+              <Route
+                path="/*"
+                element={
+                  <Layout>
+                    <Routes>
+                      {/* Protected routes */}
+                      <Route
+                        path="/"
+                        element={
+                          <ProtectedRoute>
+                            <Homepage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/upload"
+                        element={
+                          <ProtectedRoute>
+                            <Videopage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/channel"
+                        element={
+                          <ProtectedRoute>
+                            <ChannelVideoPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/channel/:userId"
+                        element={
+                          <ProtectedRoute>
+                            <UserChannelPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/history"
+                        element={
+                          <ProtectedRoute>
+                            <History />
+                          </ProtectedRoute>
+                        }
+                      />
+                      {/* <Route
                     path="/subscriptions/:channelId"
                     element={
                       <ProtectedRoute>
@@ -106,80 +109,85 @@ function App() {
                       </ProtectedRoute>
                     }
                   /> */}
-                  <Route
-                    path="/subscribers/:channelId"
-                    element={
-                      <ProtectedRoute>
-                        <Subscribers />
-                      </ProtectedRoute>
-                    }
-                  />
+                      <Route
+                        path="/subscribers/:channelId"
+                        element={
+                          <ProtectedRoute>
+                            <Subscribers />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                  <Route
-                    path="/subscribed-channels"
-                    element={
-                      <ProtectedRoute>
-                        <SubscribedChannels />
-                      </ProtectedRoute>
-                    }
-                  />
+                      <Route
+                        path="/subscribed-channels"
+                        element={
+                          <ProtectedRoute>
+                            <SubscribedChannels />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                  <Route path="/video/:videoId" element={<VideoDetailpage />} />
-                  <Route path="/liked-videos" element={<LikedVideo />} />
-                  <Route
-                    path="/profile/:_id"
-                    element={
-                      <ProtectedRoute>
-                        <Profilepage />
-                      </ProtectedRoute>
-                    }
-                  />
+                      <Route
+                        path="/video/:videoId"
+                        element={<VideoDetailpage />}
+                      />
+                      <Route path="/liked-videos" element={<LikedVideo />} />
+                      <Route
+                        path="/profile/:_id"
+                        element={
+                          <ProtectedRoute>
+                            <Profilepage />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <Settingpage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/playlists"
-                    element={
-                      <ProtectedRoute>
-                        <Playlistpage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/playlists/create"
-                    element={
-                      <ProtectedRoute>
-                        <CreatePlaylist />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/playlists/:playlistId"
-                    element={
-                      <ProtectedRoute>
-                        <PlaylistById />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboardpage />
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
-              </Layout>
-            }
-          />
-        </Routes>
+                      <Route
+                        path="/settings"
+                        element={
+                          <ProtectedRoute>
+                            <Settingpage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/playlists"
+                        element={
+                          <ProtectedRoute>
+                            <Playlistpage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/playlists/create"
+                        element={
+                          <ProtectedRoute>
+                            <CreatePlaylist />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/playlists/:playlistId"
+                        element={
+                          <ProtectedRoute>
+                            <PlaylistById />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/dashboard"
+                        element={
+                          <ProtectedRoute>
+                            <Dashboardpage />
+                          </ProtectedRoute>
+                        }
+                      />
+                    </Routes>
+                  </Layout>
+                }
+              />
+            </Routes>
+          </SearchProvider>
+        </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
   );

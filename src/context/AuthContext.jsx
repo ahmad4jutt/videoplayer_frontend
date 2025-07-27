@@ -197,19 +197,38 @@ export const AuthProvider = ({ children }) => {
       console.log("AuthContext: starting admin login...");
 
       const response = await adminLogin(credentials);
-      const receivedToken = response.data.data.accessToken;
 
-      if (!receivedToken) {
-        throw new Error("No admin token received from server");
+      // Check if the response indicates successful login
+      if (response && response.data && response.data.success) {
+        const receivedToken = response.data.data.accessToken;
+
+        if (!receivedToken) {
+          throw new Error("No admin token received from server");
+        }
+
+        // Store admin token
+        setAdminToken(receivedToken);
+        console.log("Admin login successful");
+
+        return response;
+      } else {
+        // Handle case where response doesn't indicate success
+        throw new Error("Login failed - invalid response format");
       }
-
-      // Store admin token
-      setAdminToken(receivedToken);
-
-      return response;
     } catch (error) {
       console.log("Admin login error in authProvider:", error);
       setAdminLoading(false);
+
+      // If it's a deactivation error (403), let the component handle it
+      if (error.response?.status === 403) {
+        const message = error.response.data?.message || "";
+        if (message.toLowerCase().includes("deactivated")) {
+          // Don't modify the error, let the component handle the modal
+          throw error;
+        }
+      }
+
+      // For other errors, throw as usual
       throw error;
     } finally {
       setAdminLoginInProgress(false);

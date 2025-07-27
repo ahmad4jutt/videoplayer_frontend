@@ -164,10 +164,55 @@ export const searchUsers = (token, query) =>
   });
 // admin
 export const adminLogin = (data) => axios.post(`${ADMIN_BASE_URL}/login`, data);
-
+//register a new admin (superadmin only )
 export const adminRegister = (token, data) =>
   axios.post(`${ADMIN_BASE_URL}/register`, data, {
     headers: { Authorization: `Bearer ${token}` },
+  });
+
+// Get all admins (Super Admin only)
+export const getAllAdmins = (token) =>
+  axios.get(`${ADMIN_BASE_URL}/list`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+// Get admin by ID (Super Admin only)
+export const getAdminById = (token, adminId) =>
+  axios.get(`${ADMIN_BASE_URL}/profile/${adminId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+export const getAllUsers = (token, params = {}) => {
+  const queryParams = new URLSearchParams();
+
+  // Add optional query parameters
+  if (params.page) queryParams.append("page", params.page);
+  if (params.limit) queryParams.append("limit", params.limit);
+  if (params.search) queryParams.append("search", params.search);
+  if (params.status) queryParams.append("status", params.status);
+  if (params.sortBy) queryParams.append("sortBy", params.sortBy);
+  if (params.sortOrder) queryParams.append("sortOrder", params.sortOrder);
+
+  const queryString = queryParams.toString();
+  const url = `${ADMIN_BASE_URL}/users/list${
+    queryString ? `?${queryString}` : ""
+  }`;
+
+  return axios.get(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+export const getUserById = (token, userId) =>
+  axios.get(`${ADMIN_BASE_URL}/users/profile/${userId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+// Toggle admin status (Super Admin only)
+export const toggleAdminStatus = (token, adminId, statusData = {}) =>
+  axios.patch(`${ADMIN_BASE_URL}/${adminId}/toggle-status`, statusData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   });
 export const getCurrentAdmin = (token) => {
   console.log("Sending request with token:", token); // Add this line
@@ -196,29 +241,6 @@ export const getSystemAnalytics = (token, period = "7d") =>
   });
 
 // User Management
-export const getAllUsers = (token, params = {}) => {
-  const queryParams = new URLSearchParams();
-
-  // Add optional query parameters
-  if (params.page) queryParams.append("page", params.page);
-  if (params.limit) queryParams.append("limit", params.limit);
-  if (params.search) queryParams.append("search", params.search);
-  if (params.status) queryParams.append("status", params.status);
-  if (params.sortBy) queryParams.append("sortBy", params.sortBy);
-  if (params.sortOrder) queryParams.append("sortOrder", params.sortOrder);
-
-  const queryString = queryParams.toString();
-  const url = `${ADMIN_BASE_URL}/users${queryString ? `?${queryString}` : ""}`;
-
-  return axios.get(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-};
-
-export const getUserById = (token, userId) =>
-  axios.get(`${ADMIN_BASE_URL}/users/${userId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
 
 export const forceDeactivateUser = (token, userId, data) =>
   axios.patch(`${ADMIN_BASE_URL}/users/${userId}/deactivate`, data, {
@@ -240,7 +262,7 @@ export const adminDeleteUser = (token, userId, data) =>
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    data: data, // Contains confirmDelete and reason
+    data: data, // Contains confirmDelete and reason only super admin can delete users
   });
 // VideoRequest
 export const publishVideo = (token, videoFormData) =>
@@ -258,10 +280,28 @@ export const getUserChannelVideos = (token, userId) =>
   axios.get(`${VIDEO_BASE_URL}/channel/${userId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-export const getAllVideos = (token, videoId) =>
-  axios.get(`${VIDEO_BASE_URL}`, {
+// export const getAllVideos = (token, videoId) =>
+//   axios.get(`${VIDEO_BASE_URL}`, {
+//     headers: { Authorization: `Bearer ${token}` },
+//   });
+export const getAllVideos = (token, params = {}) => {
+  const queryParams = new URLSearchParams();
+
+  // Add optional query parameters
+  if (params.page) queryParams.append("page", params.page);
+  if (params.limit) queryParams.append("limit", params.limit);
+  if (params.query) queryParams.append("query", params.query);
+  if (params.sortBy) queryParams.append("sortBy", params.sortBy);
+  if (params.sortType) queryParams.append("sortType", params.sortType);
+  if (params.userId) queryParams.append("userId", params.userId);
+
+  const queryString = queryParams.toString();
+  const url = queryString ? `${VIDEO_BASE_URL}?${queryString}` : VIDEO_BASE_URL;
+
+  return axios.get(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
+};
 export const getVideoById = (token, videoId) =>
   axios.get(`${VIDEO_BASE_URL}/${videoId}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -294,7 +334,30 @@ export const togglePublishStatus = (token, videoId) =>
       headers: { Authorization: `Bearer ${token}` },
     }
   );
+export const getVideoAnalytics = (token, videoId, days = 30) => {
+  const queryParams = new URLSearchParams();
+  if (days) queryParams.append("days", days);
 
+  const queryString = queryParams.toString();
+  const url = queryString
+    ? `${VIDEO_BASE_URL}/analytics/${videoId}?${queryString}`
+    : `${VIDEO_BASE_URL}/analytics/${videoId}`;
+
+  return axios.get(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+export const updateWatchDuration = (token, videoId, duration) =>
+  axios.patch(
+    `${VIDEO_BASE_URL}/watch-duration/${videoId}`,
+    { duration },
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 // ========== COMMENT REQUESTS ==========
 export const getComments = (token, videoId) =>
   axios.get(`${COMMENT_BASE_URL}/${videoId}`, {
@@ -409,5 +472,12 @@ export const getSubscribedChannels = (
       headers: { Authorization: `Bearer ${token}` },
     }
   );
-
+export const getTotalSubscribers = (token, channelId) =>
+  axios.get(`${SUBSCRIPTION_BASE_URL}/count/${channelId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+export const isUserSubscribed = (token, channelId) =>
+  axios.get(`${SUBSCRIPTION_BASE_URL}/check/${channelId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 export const getHealthStatus = () => axios.get(`${HEALTHCHECK_BASE_URL}`);

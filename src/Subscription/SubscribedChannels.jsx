@@ -1,18 +1,40 @@
-import React, { useState, useEffect } from "react";
-import { UserPlus, Search, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  UserPlus,
+  UserMinus,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Play,
+  Clock,
+  Users,
+  Loader2,
+  VolumeX,
+  Volume2,
+  MoreVertical,
+  Share2,
+  Bookmark,
+  PlayIcon,
+  Link,
+} from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/UseAuth";
-import { getSubscribedChannels } from "../services/api";
+import { useTheme } from "../context/ThemeContext";
+import { getSubscribedChannels, toggleSubscription } from "../services/api";
 
 const SubscribedChannels = () => {
   const navigate = useNavigate();
+  const { isDarkMode } = useTheme();
   const [subscribedChannels, setSubscribedChannels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [limit] = useState(10);
+  const [limit] = useState(12);
+  const [toggleLoading, setToggleLoading] = useState({}); // Track loading state for each channel
 
   const { token, currentUser } = useAuth();
 
@@ -56,6 +78,42 @@ const SubscribedChannels = () => {
     navigate(`/channel/${channelId}`);
   };
 
+  const handleVideoClick = (videoId, e) => {
+    e.stopPropagation();
+    navigate(`/video/${videoId}`);
+  };
+
+  const formatViewCount = (views) => {
+    if (views >= 1000000) {
+      return `${(views / 1000000).toFixed(1)}M`;
+    } else if (views >= 1000) {
+      return `${(views / 1000).toFixed(1)}K`;
+    }
+    return views?.toString() || "0";
+  };
+
+  const formatTimeAgo = (date) => {
+    if (!date) return "Unknown";
+    const now = new Date();
+    const videoDate = new Date(date);
+    const diffTime = Math.abs(now - videoDate);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "1 day ago";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+    return `${Math.floor(diffDays / 365)} years ago`;
+  };
+  const formatDuration = (second) => {
+    if (!second) return "0:00";
+
+    const totalSeconds = Math.round(second);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
   const filteredChannels = subscribedChannels.filter((channel) => {
     if (!channel.channelDetails) return false;
 
@@ -70,141 +128,432 @@ const SubscribedChannels = () => {
   });
 
   const LoadingSpinner = () => (
-    <div className="flex justify-center items-center p-8">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    <div className="flex justify-center items-center p-12">
+      <div className="relative">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600"></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-6 h-6 bg-blue-600 rounded-full opacity-20"></div>
+        </div>
+      </div>
     </div>
   );
 
   const EmptyState = () => (
-    <div className="text-center py-12">
-      <div className="mx-auto h-12 w-12 text-gray-400">
-        <UserPlus size={48} />
+    <div className="text-center py-16">
+      <div
+        className={`mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 ${
+          isDarkMode ? "bg-gray-800" : "bg-gray-100"
+        }`}
+      >
+        <UserPlus
+          size={40}
+          className={isDarkMode ? "text-gray-400" : "text-gray-500"}
+        />
       </div>
-      <h3 className="mt-2 text-sm font-medium text-gray-900">
-        No subscribed channels found
+      <h3
+        className={`text-xl font-semibold mb-2 ${
+          isDarkMode ? "text-white" : "text-gray-900"
+        }`}
+      >
+        No Subscribed Channels
       </h3>
-      <p className="mt-1 text-sm text-gray-500">
-        No subscribed channels to display yet.
+      <p
+        className={`text-base max-w-md mx-auto ${
+          isDarkMode ? "text-gray-400" : "text-gray-600"
+        }`}
+      >
+        Start exploring and subscribe to channels to see them here. Discover
+        amazing content creators!
       </p>
     </div>
   );
 
-  const ChannelCard = ({ channel }) => (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-      <div className="h-24 bg-gradient-to-r from-blue-500 to-purple-600 relative">
-        {channel.channelDetails.coverImage && (
-          <img
-            src={channel.channelDetails.coverImage}
-            alt="Channel cover"
-            className="w-full h-full object-cover"
+  const ChannelCard = ({ channel }) => {
+    const recentVideo = channel.recentVideos?.[0];
+    const channelId = channel.channel;
+    const isToggling = toggleLoading[channelId];
+    const [isHovered, setIsHovered] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
+    const [showShareMenu, setShowShareMenu] = useState(false);
+    const videoRef = useRef(null);
+
+    const handleMuteToggle = (e) => {
+      e.stopPropagation();
+      setIsMuted((prev) => {
+        const newMutedState = !prev;
+        if (videoRef.current) {
+          videoRef.current.muted = newMutedState;
+        }
+        return newMutedState;
+      });
+    };
+
+    const handleVideoHover = (isEntering) => {
+      setIsHovered(isEntering);
+      if (videoRef.current) {
+        if (isEntering) {
+          videoRef.current.currentTime = 0;
+          videoRef.current.play().catch(console.error);
+        } else {
+          videoRef.current.pause();
+        }
+      }
+    };
+
+    const handleShareClick = (e) => {
+      e.stopPropagation();
+      setShowShareMenu(!showShareMenu);
+    };
+
+    return (
+      <div
+        className={`group overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
+          isDarkMode
+            ? "bg-gray-900 hover:shadow-2xl "
+            : "bg-white hover:shadow-xl "
+        }`}
+        onClick={() => handleChannelClick(channelId)}
+      >
+        {/* Video Thumbnail/Player */}
+        <div
+          className="relative h-48 overflow-hidden"
+          onMouseEnter={() => handleVideoHover(true)}
+          onMouseLeave={() => handleVideoHover(false)}
+        >
+          {recentVideo ? (
+            <>
+              {/* Video thumbnail - shown when not hovered */}
+              <img
+                src={recentVideo.thumbnail.url}
+                alt={recentVideo.title}
+                className={`w-full h-full rounded-xl object-cover transition-all duration-300 ${
+                  isHovered ? "opacity-0" : "opacity-100"
+                }`}
+              />
+
+              {/* Video player - shown on hover */}
+              <video
+                ref={videoRef}
+                src={recentVideo.videoFile.url}
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                  isHovered ? "opacity-100" : "opacity-0"
+                }`}
+                muted={isMuted}
+                loop
+                playsInline
+              />
+              {recentVideo.duration && (
+                <div className="absolute bottom-2 right-2">
+                  <span className="bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                    <Clock size={12} />
+                    {formatDuration(recentVideo.duration)}
+                  </span>
+                </div>
+              )}
+              {/* Play button overlay - only shown when not hovered */}
+              {!isHovered && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-colors duration-300">
+                  <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
+                    <Play size={20} className="text-gray-800 ml-1" />
+                  </div>
+                </div>
+              )}
+
+              {/* Mute button - shown when hovered and video is playing */}
+              {isHovered && (
+                <div className="absolute top-3 right-3">
+                  <button
+                    onClick={handleMuteToggle}
+                    className="w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-colors duration-200"
+                  >
+                    {isMuted ? (
+                      <VolumeX size={16} className="text-white" />
+                    ) : (
+                      <Volume2 size={16} className="text-white" />
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            // Fallback gradient when no recent video
+            <div className="w-full h-full bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500">
+              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300"></div>
+            </div>
+          )}
+        </div>
+
+        {/* Updated Bottom Section with new layout */}
+        {recentVideo && (
+          <div className="p-3">
+            <div className="flex items-start gap-3">
+              {/* Left: Channel Avatar */}
+              <div className="flex-shrink-0">
+                <div className="relative">
+                  <img
+                    src={channel.channelDetails.avatar}
+                    alt={channel.channelDetails.fullName}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                </div>
+              </div>
+
+              {/* Middle: Video Info Column */}
+              <div className="flex-1  min-w-0">
+                <h3
+                  className={`text-sm font-medium line-clamp-2 mb-1 ${
+                    isDarkMode ? "text-white" : "text-gray-900"
+                  }`}
+                  onClick={(e) => handleVideoClick(recentVideo._id, e)}
+                >
+                  {recentVideo.title}
+                </h3>
+
+                <p
+                  className={`text-xs mb-1 ${
+                    isDarkMode ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
+                  {channel.channelDetails.fullName}
+                </p>
+
+                <div className="flex items-center gap-2 text-xs">
+                  <span
+                    className={isDarkMode ? "text-gray-400" : "text-gray-600"}
+                  >
+                    {formatViewCount(recentVideo.views)} views
+                  </span>
+                  <span
+                    className={isDarkMode ? "text-gray-500" : "text-gray-400"}
+                  >
+                    •
+                  </span>
+                  <span
+                    className={isDarkMode ? "text-gray-400" : "text-gray-600"}
+                  >
+                    {formatTimeAgo(recentVideo.createdAt)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Right: Share Menu */}
+              <div className="flex-shrink-0 relative">
+                <button
+                  onClick={handleShareClick}
+                  className={`p-1 rounded-full hover:bg-opacity-10 transition-colors duration-200 ${
+                    isDarkMode
+                      ? "hover:bg-white text-gray-400 hover:text-white"
+                      : "hover:bg-gray-900 text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <MoreVertical size={16} />
+                </button>
+
+                {/* Share Dropdown Menu */}
+                {showShareMenu && (
+                  <div
+                    className={`absolute right-0 top-8 w-48 rounded-lg shadow-lg border z-10 ${
+                      isDarkMode
+                        ? "bg-gray-800 border-gray-600"
+                        : "bg-white border-gray-200"
+                    }`}
+                  >
+                    <div className="py-2">
+                      <button
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-opacity-10 transition-colors duration-200 flex items-center gap-2 ${
+                          isDarkMode
+                            ? "text-gray-300 hover:bg-white hover:text-white"
+                            : "text-gray-700 hover:bg-gray-900 hover:text-gray-900"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Handle share functionality
+                          setShowShareMenu(false);
+                        }}
+                      >
+                        <Share2 size={14} />
+                        Share
+                      </button>
+                      <button
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-opacity-10 transition-colors duration-200 flex items-center gap-2 ${
+                          isDarkMode
+                            ? "text-gray-300 hover:bg-white hover:text-white"
+                            : "text-gray-700 hover:bg-gray-900 hover:text-gray-900"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Handle save to playlist functionality
+                          setShowShareMenu(false);
+                        }}
+                      >
+                        <Bookmark size={14} />
+                        Save to playlist
+                      </button>
+                      <button
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-opacity-10 transition-colors duration-200 flex items-center gap-2 ${
+                          isDarkMode
+                            ? "text-gray-300 hover:bg-white hover:text-white"
+                            : "text-gray-700 hover:bg-gray-900 hover:text-gray-900"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Handle copy link functionality
+                          setShowShareMenu(false);
+                        }}
+                      >
+                        <Link size={14} />
+                        Copy link
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Close dropdown when clicking outside */}
+        {showShareMenu && (
+          <div
+            className="fixed inset-0 z-5"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowShareMenu(false);
+            }}
           />
         )}
       </div>
-      <div className="p-4">
-        <div className="flex items-center space-x-3">
-          <img
-            src={channel.channelDetails.avatar}
-            alt={channel.channelDetails.fullName}
-            className="h-10 w-10 rounded-full object-cover border-2 border-white"
-          />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {channel.channelDetails.fullName}
-            </p>
-            <p className="text-sm text-gray-500 truncate">
-              @{channel.channelDetails.userName}
-            </p>
-          </div>
-        </div>
-        <div className="mt-3 flex justify-between items-center">
-          <button
-            onClick={() => handleChannelClick(channel._id)}
-            className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <Eye className="h-4 w-4 mr-1 cursor-pointer" />
-            Visit
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
-  const Pagination = () => (
-    <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
-      <div className="flex items-center text-sm text-gray-700">
-        Showing {(currentPage - 1) * limit + 1} to{" "}
-        {Math.min(currentPage * limit, totalCount)} of {totalCount} results
-      </div>
-      <div className="flex items-center space-x-2">
-        <button
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
+  const Pagination = () => {
+    const getPageNumbers = () => {
+      const delta = 2;
+      const range = [];
+      const rangeWithDots = [];
+
+      for (
+        let i = Math.max(2, currentPage - delta);
+        i <= Math.min(totalPages - 1, currentPage + delta);
+        i++
+      ) {
+        range.push(i);
+      }
+
+      if (currentPage - delta > 2) {
+        rangeWithDots.push(1, "...");
+      } else {
+        rangeWithDots.push(1);
+      }
+
+      rangeWithDots.push(...range);
+
+      if (currentPage + delta < totalPages - 1) {
+        rangeWithDots.push("...", totalPages);
+      } else if (totalPages > 1) {
+        rangeWithDots.push(totalPages);
+      }
+
+      return rangeWithDots;
+    };
+
+    return (
+      <div
+        className={`px-6 py-4 border-t flex items-center justify-between ${
+          isDarkMode
+            ? "border-gray-700 bg-gray-800"
+            : "border-gray-200 bg-gray-50"
+        }`}
+      >
+        <div
+          className={`text-sm ${
+            isDarkMode ? "text-gray-400" : "text-gray-700"
+          }`}
         >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
+          Showing {(currentPage - 1) * limit + 1} to{" "}
+          {Math.min(currentPage * limit, totalCount)} of {totalCount} channels
+        </div>
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              currentPage === 1
+                ? isDarkMode
+                  ? "text-gray-600 cursor-not-allowed"
+                  : "text-gray-400 cursor-not-allowed"
+                : isDarkMode
+                ? "text-gray-300 hover:bg-gray-700 hover:text-white"
+                : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
+            }`}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
 
-        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-          const page = i + 1;
-          return (
+          {getPageNumbers().map((page, index) => (
             <button
-              key={page}
-              onClick={() => handlePageChange(page)}
-              className={`relative inline-flex items-center px-3 py-2 border text-sm font-medium rounded-md ${
+              key={index}
+              onClick={() =>
+                typeof page === "number" ? handlePageChange(page) : null
+              }
+              disabled={page === "..."}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                 currentPage === page
-                  ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                  : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                  ? "bg-blue-600 text-white shadow-lg"
+                  : page === "..."
+                  ? isDarkMode
+                    ? "text-gray-600 cursor-default"
+                    : "text-gray-400 cursor-default"
+                  : isDarkMode
+                  ? "text-gray-300 hover:bg-gray-700 hover:text-white"
+                  : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
               }`}
             >
               {page}
             </button>
-          );
-        })}
+          ))}
 
-        <button
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              currentPage === totalPages
+                ? isDarkMode
+                  ? "text-gray-600 cursor-not-allowed"
+                  : "text-gray-400 cursor-not-allowed"
+                : isDarkMode
+                ? "text-gray-300 hover:bg-gray-700 hover:text-white"
+                : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
+            }`}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow">
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h1 className="text-2xl font-semibold text-gray-900">
-              Subscribed Channels ({totalCount})
-            </h1>
-          </div>
-
-          {/* Search Bar */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search channels..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
+    <div
+      className={`min-h-screen transition-colors duration-300 ${
+        isDarkMode ? "bg-gray-900" : "bg-white"
+      }`}
+    >
+      <div className="">
+        <div
+          className={` overflow-hidden transition-colors duration-300 ${
+            isDarkMode ? "bg-gray-900 " : "bg-white "
+          } `}
+        >
           {/* Content */}
-          <div className="p-6">
+          <div className="p-8">
             {loading ? (
               <LoadingSpinner />
             ) : filteredChannels.length === 0 ? (
               <EmptyState />
             ) : (
-              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
                 {filteredChannels.map((channel) => (
                   <ChannelCard key={channel._id} channel={channel} />
                 ))}
@@ -213,7 +562,9 @@ const SubscribedChannels = () => {
           </div>
 
           {/* Pagination */}
-          {!loading && filteredChannels.length > 0 && <Pagination />}
+          {!loading && filteredChannels.length > 0 && totalPages > 1 && (
+            <Pagination />
+          )}
         </div>
       </div>
     </div>
