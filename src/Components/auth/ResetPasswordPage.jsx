@@ -8,12 +8,10 @@ import {
   AlertCircle,
   ArrowLeft,
 } from "lucide-react";
-import { resetPassword } from "../../services/api";
 import { useAuth } from "../../hooks/UseAuth";
-
 const ResetPasswordPage = () => {
-  const { token } = useParams();
-  const { resetPassword, resetPasswordInProgress } = useAuth(); // Extract token from URL params
+  const token = window.location.pathname.split("/").pop();
+  const { resetPassword, resetPasswordInProgress } = useAuth();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -48,6 +46,7 @@ const ResetPasswordPage = () => {
       return false;
     }
     if (formData.password !== formData.confirmPassword) {
+      errors.push("Passwords do not match.");
       setMessage("Passwords do not match.");
       return false;
     }
@@ -66,6 +65,7 @@ const ResetPasswordPage = () => {
       console.log("Reset password request:", {
         token: token,
         password: formData.password,
+        confirmPassword: formData.confirmPassword,
         url: `/api/v1/users/reset-password/${token}`,
       });
 

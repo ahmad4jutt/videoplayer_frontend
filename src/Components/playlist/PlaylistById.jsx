@@ -10,12 +10,14 @@ import {
   Heart,
   Download,
 } from "lucide-react";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuth } from "../../hooks/UseAuth";
+import { useTheme } from "../../context/ThemeContext";
 import { getPlaylistById } from "../../services/api";
 
 const PlaylistById = () => {
   const { playlistId } = useParams();
   const { videoId } = useParams();
+  const { isDarkMode } = useTheme();
 
   const [playlist, setPlaylist] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -105,10 +107,18 @@ const PlaylistById = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div
+        className={`min-h-screen flex items-center justify-center ${
+          isDarkMode ? "bg-gray-900" : "bg-gray-50"
+        }`}
+      >
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading playlist...</p>
+          <p
+            className={`mt-4 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}
+          >
+            Loading playlist...
+          </p>
         </div>
       </div>
     );
@@ -116,11 +126,23 @@ const PlaylistById = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div
+        className={`min-h-screen flex items-center justify-center ${
+          isDarkMode ? "bg-gray-900" : "bg-gray-50"
+        }`}
+      >
         <div className="text-center">
           <div className="text-red-500 text-xl mb-4">⚠️</div>
-          <p className="text-gray-800 font-medium">Error loading playlist</p>
-          <p className="text-gray-600">{error}</p>
+          <p
+            className={`font-medium mb-2 ${
+              isDarkMode ? "text-gray-200" : "text-gray-800"
+            }`}
+          >
+            Error loading playlist
+          </p>
+          <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+            {error}
+          </p>
         </div>
       </div>
     );
@@ -129,19 +151,31 @@ const PlaylistById = () => {
   // Add check for playlist existence
   if (!playlist) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div
+        className={`min-h-screen flex items-center justify-center ${
+          isDarkMode ? "bg-gray-900" : "bg-gray-50"
+        }`}
+      >
         <div className="text-center">
-          <p className="text-gray-600">Playlist not found</p>
+          <p className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+            Playlist not found
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+        <div
+          className={`rounded-xl shadow-sm overflow-hidden mb-8 ${
+            isDarkMode ? "bg-gray-800" : "bg-white"
+          }`}
+        >
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-white">
             <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
               <div className="flex-shrink-0">
@@ -192,7 +226,11 @@ const PlaylistById = () => {
 
           {/* Owner Info - Only show if owner data exists */}
           {playlist.owner && (
-            <div className="p-6 border-b">
+            <div
+              className={`p-6 border-b ${
+                isDarkMode ? "border-gray-700" : "border-gray-200"
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <img
@@ -201,10 +239,18 @@ const PlaylistById = () => {
                     className="w-12 h-12 rounded-full object-cover"
                   />
                   <div>
-                    <h3 className="font-semibold text-gray-900">
+                    <h3
+                      className={`font-semibold ${
+                        isDarkMode ? "text-gray-100" : "text-gray-900"
+                      }`}
+                    >
                       {playlist.owner.fullName}
                     </h3>
-                    <p className="text-gray-600">@{playlist.owner.userName}</p>
+                    <p
+                      className={isDarkMode ? "text-gray-400" : "text-gray-600"}
+                    >
+                      @{playlist.owner.userName}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -213,6 +259,8 @@ const PlaylistById = () => {
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                       liked
                         ? "bg-red-100 text-red-700 hover:bg-red-200"
+                        : isDarkMode
+                        ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                   >
@@ -221,7 +269,13 @@ const PlaylistById = () => {
                     />
                     <span>{liked ? "Liked" : "Like"}</span>
                   </button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                  <button
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                      isDarkMode
+                        ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
                     <Share2 className="w-4 h-4" />
                     <span>Share</span>
                   </button>
@@ -236,19 +290,49 @@ const PlaylistById = () => {
         </div>
 
         {/* Videos Grid */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="p-6 border-b">
-            <h2 className="text-xl font-semibold text-gray-900">Videos</h2>
+        <div
+          className={`rounded-xl shadow-sm overflow-hidden ${
+            isDarkMode ? "bg-gray-800" : "bg-white"
+          }`}
+        >
+          <div
+            className={`p-6 border-b ${
+              isDarkMode ? "border-gray-700" : "border-gray-200"
+            }`}
+          >
+            <h2
+              className={`text-xl font-semibold ${
+                isDarkMode ? "text-gray-100" : "text-gray-900"
+              }`}
+            >
+              Videos
+            </h2>
           </div>
           {!playlist?.videos || playlist.videos.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Play className="w-8 h-8 text-gray-400" />
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-100"
+                }`}
+              >
+                <Play
+                  className={`w-8 h-8 ${
+                    isDarkMode ? "text-gray-500" : "text-gray-400"
+                  }`}
+                />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3
+                className={`text-lg font-medium mb-2 ${
+                  isDarkMode ? "text-gray-100" : "text-gray-900"
+                }`}
+              >
                 No videos yet
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p
+                className={`mb-6 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
                 This playlist is empty. Videos will appear here once they're
                 added.
               </p>
@@ -257,21 +341,33 @@ const PlaylistById = () => {
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div
+              className={`divide-y ${
+                isDarkMode ? "divide-gray-700" : "divide-gray-100"
+              }`}
+            >
               {playlist.videos.map((video, index) => (
                 <Link key={video._id} to={`/video/${video._id}`}>
                   <div
                     key={video._id}
-                    className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${
+                    className={`p-6 transition-colors cursor-pointer ${
                       currentVideo === index
-                        ? "bg-blue-50 border-l-4 border-blue-600"
-                        : ""
+                        ? isDarkMode
+                          ? "bg-blue-900/30 border-l-4 border-blue-500"
+                          : "bg-blue-50 border-l-4 border-blue-600"
+                        : isDarkMode
+                        ? "hover:bg-gray-700"
+                        : "hover:bg-gray-50"
                     }`}
                     onClick={() => setCurrentVideo(index)}
                   >
                     <div className="flex items-center gap-4">
                       <div className="flex-shrink-0">
-                        <span className="text-sm font-medium text-gray-500 w-6 text-center">
+                        <span
+                          className={`text-sm font-medium w-6 text-center ${
+                            isDarkMode ? "text-gray-400" : "text-gray-500"
+                          }`}
+                        >
                           {index + 1}
                         </span>
                       </div>
@@ -289,13 +385,25 @@ const PlaylistById = () => {
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900 mb-1 truncate">
+                        <h3
+                          className={`font-medium mb-1 truncate ${
+                            isDarkMode ? "text-gray-100" : "text-gray-900"
+                          }`}
+                        >
                           {video.title}
                         </h3>
-                        <p className="text-sm text-gray-600 line-clamp-2">
+                        <p
+                          className={`text-sm line-clamp-2 ${
+                            isDarkMode ? "text-gray-400" : "text-gray-600"
+                          }`}
+                        >
                           {video.description}
                         </p>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                        <div
+                          className={`flex items-center gap-4 mt-2 text-sm ${
+                            isDarkMode ? "text-gray-500" : "text-gray-500"
+                          }`}
+                        >
                           <div className="flex items-center gap-1">
                             <Eye className="w-4 h-4" />
                             <span>{formatViews(video.views)} views</span>

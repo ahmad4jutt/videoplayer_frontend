@@ -1,12 +1,14 @@
 // src/components/playlist/CreatePlaylistPage.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuth } from "../../hooks/UseAuth";
+import { useTheme } from "../../context/ThemeContext";
 import { createPlaylist } from "../../services/api";
 
 export default function CreatePlaylistPage() {
   const navigate = useNavigate();
   const { token, currentUser } = useAuth();
+  const { isDarkMode } = useTheme();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -61,13 +63,21 @@ export default function CreatePlaylistPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div
+      className={`min-h-screen p-6 ${
+        isDarkMode ? "bg-gray-900" : "bg-gray-50"
+      }`}
+    >
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={handleCancel}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+            className={`flex items-center mb-4 transition-colors ${
+              isDarkMode
+                ? "text-gray-400 hover:text-gray-100"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
           >
             <svg
               className="w-5 h-5 mr-2"
@@ -84,23 +94,41 @@ export default function CreatePlaylistPage() {
             </svg>
             Back to Playlists
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1
+            className={`text-3xl font-bold ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
             Create New Playlist
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p
+            className={`mt-2 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}
+          >
             Organize your favorite videos into a custom playlist
           </p>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div
+          className={`rounded-lg shadow-md p-6 ${
+            isDarkMode ? "bg-gray-800" : "bg-white"
+          }`}
+        >
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div
+                className={`border rounded-lg p-4 ${
+                  isDarkMode
+                    ? "bg-red-900/20 border-red-800"
+                    : "bg-red-50 border-red-200"
+                }`}
+              >
                 <div className="flex items-center">
                   <svg
-                    className="w-5 h-5 text-red-500 mr-2"
+                    className={`w-5 h-5 mr-2 ${
+                      isDarkMode ? "text-red-400" : "text-red-500"
+                    }`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -112,7 +140,11 @@ export default function CreatePlaylistPage() {
                       d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z"
                     />
                   </svg>
-                  <span className="text-red-700">{error}</span>
+                  <span
+                    className={isDarkMode ? "text-red-300" : "text-red-700"}
+                  >
+                    {error}
+                  </span>
                 </div>
               </div>
             )}
@@ -121,7 +153,9 @@ export default function CreatePlaylistPage() {
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? "text-gray-300" : "text-gray-700"
+                }`}
               >
                 Playlist Name *
               </label>
@@ -133,7 +167,11 @@ export default function CreatePlaylistPage() {
                 onChange={handleChange}
                 required
                 placeholder="Enter playlist name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  isDarkMode
+                    ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                    : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                }`}
               />
             </div>
 
@@ -141,7 +179,9 @@ export default function CreatePlaylistPage() {
             <div>
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium mb-2 ${
+                  isDarkMode ? "text-gray-300" : "text-gray-700"
+                }`}
               >
                 Description
               </label>
@@ -152,13 +192,25 @@ export default function CreatePlaylistPage() {
                 onChange={handleChange}
                 rows={4}
                 placeholder="Tell people what your playlist is about (optional)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
+                  isDarkMode
+                    ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                    : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                }`}
               />
             </div>
 
             {/* Privacy Settings */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">
+            <div
+              className={`p-4 rounded-lg ${
+                isDarkMode ? "bg-gray-700" : "bg-gray-50"
+              }`}
+            >
+              <h3
+                className={`text-sm font-medium mb-3 ${
+                  isDarkMode ? "text-white" : "text-gray-900"
+                }`}
+              >
                 Privacy Settings
               </h3>
               <div className="flex items-center">
@@ -168,16 +220,26 @@ export default function CreatePlaylistPage() {
                   name="isPublic"
                   checked={formData.isPublic}
                   onChange={handleChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className={`h-4 w-4 text-blue-600 focus:ring-blue-500 rounded ${
+                    isDarkMode
+                      ? "border-gray-500 bg-gray-600"
+                      : "border-gray-300 bg-white"
+                  }`}
                 />
                 <label
                   htmlFor="isPublic"
-                  className="ml-2 block text-sm text-gray-700"
+                  className={`ml-2 block text-sm ${
+                    isDarkMode ? "text-gray-300" : "text-gray-700"
+                  }`}
                 >
                   Make this playlist public
                 </label>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p
+                className={`text-xs mt-1 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-500"
+                }`}
+              >
                 {formData.isPublic
                   ? "Anyone can view this playlist"
                   : "Only you can view this playlist"}
@@ -238,7 +300,11 @@ export default function CreatePlaylistPage() {
                 type="button"
                 onClick={handleCancel}
                 disabled={loading}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors duration-200"
+                className={`px-6 py-2 border rounded-lg transition-colors duration-200 disabled:opacity-50 ${
+                  isDarkMode
+                    ? "border-gray-600 text-gray-300 hover:bg-gray-700"
+                    : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                }`}
               >
                 Cancel
               </button>
@@ -247,10 +313,18 @@ export default function CreatePlaylistPage() {
         </div>
 
         {/* Info Section */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div
+          className={`mt-8 border rounded-lg p-4 ${
+            isDarkMode
+              ? "bg-blue-900/20 border-blue-800"
+              : "bg-blue-50 border-blue-200"
+          }`}
+        >
           <div className="flex items-start">
             <svg
-              className="w-5 h-5 text-blue-500 mr-3 mt-0.5"
+              className={`w-5 h-5 mr-3 mt-0.5 ${
+                isDarkMode ? "text-blue-400" : "text-blue-500"
+              }`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -263,10 +337,18 @@ export default function CreatePlaylistPage() {
               />
             </svg>
             <div>
-              <h4 className="text-sm font-medium text-blue-900">
+              <h4
+                className={`text-sm font-medium ${
+                  isDarkMode ? "text-blue-300" : "text-blue-900"
+                }`}
+              >
                 Getting Started
               </h4>
-              <p className="text-sm text-blue-700 mt-1">
+              <p
+                className={`text-sm mt-1 ${
+                  isDarkMode ? "text-blue-400" : "text-blue-700"
+                }`}
+              >
                 After creating your playlist, you can add videos to it from any
                 video page by clicking the "Add to Playlist" button.
               </p>

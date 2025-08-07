@@ -9,9 +9,7 @@ import Regiserpage from "./Components/auth/Registerpage";
 
 //user
 import Profilepage from "./Components/user/Profilepage";
-import Settingpage from "./Components/user/Settingpage";
 import History from "./Components/auth/History";
-import Subscription from "./Components/user/Subscription";
 
 //video
 import Homepage from "./Components/video/Homepage";
@@ -20,7 +18,7 @@ import VideoDetailpage from "./Components/video/VideoDetailpage";
 import ChannelVideoPage from "./Components/video/ChannelVideoPage";
 import UserChannelPage from "./Components/video/UserChannelPage";
 import { SearchProvider } from "./context/SearchContext";
-
+import ShortsPage from "./Components/video/ShortsPage";
 //playlist
 import CreatePlaylist from "./Components/playlist/CreatePlaylist";
 import Playlistpage from "./Components/playlist/Playlistpage";
@@ -36,7 +34,8 @@ import LikedVideo from "./Components/video/LikedVideo";
 // subscription
 import Subscribers from "./Subscription/Subscribers";
 import SubscribedChannels from "./Subscription/SubscribedChannels";
-
+// import SubscriptionNotificationsPage from "./Components/common/SubscriptionNotificationsPage ";
+import HelpPage from "./Components/user/HelpPage";
 //admin
 import AdminRoutes from "./admin/AdminRoutes";
 function App() {
@@ -69,6 +68,8 @@ function App() {
                           </ProtectedRoute>
                         }
                       />
+
+                      <Route path="/help" element={<HelpPage />} />
                       <Route
                         path="/upload"
                         element={
@@ -85,6 +86,14 @@ function App() {
                           </ProtectedRoute>
                         }
                       />
+                      {/* <Route
+                        path="/notification"
+                        element={
+                          <ProtectedRoute>
+                            <SubscriptionNotificationsPage />
+                          </ProtectedRoute>
+                        }
+                      /> */}
                       <Route
                         path="/channel/:userId"
                         element={
@@ -101,14 +110,7 @@ function App() {
                           </ProtectedRoute>
                         }
                       />
-                      {/* <Route
-                    path="/subscriptions/:channelId"
-                    element={
-                      <ProtectedRoute>
-                        <Subscription />
-                      </ProtectedRoute>
-                    }
-                  /> */}
+
                       <Route
                         path="/subscribers/:channelId"
                         element={
@@ -141,14 +143,6 @@ function App() {
                         }
                       />
 
-                      <Route
-                        path="/settings"
-                        element={
-                          <ProtectedRoute>
-                            <Settingpage />
-                          </ProtectedRoute>
-                        }
-                      />
                       <Route
                         path="/playlists"
                         element={

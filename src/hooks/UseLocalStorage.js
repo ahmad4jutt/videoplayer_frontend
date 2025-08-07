@@ -5,7 +5,6 @@ export function useLocalStorage(key, initialValue) {
   const [stored, setStored] = useState(() => {
     try {
       const item = window.localStorage.getItem(key);
-      console.log(`useLocalStorage init - key: ${key}, item: ${item}`);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
       console.error(`Error reading localStorage key "${key}":`, error);
@@ -16,7 +15,6 @@ export function useLocalStorage(key, initialValue) {
   const setValue = useCallback(
     (value) => {
       try {
-        console.log(`useLocalStorage setValue - key: ${key}, value:`, value);
         // Allow value to be a function so we have the same API as useState
         const valueToStore = value instanceof Function ? value(stored) : value;
         // Update state

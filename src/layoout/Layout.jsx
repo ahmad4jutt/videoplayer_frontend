@@ -49,14 +49,7 @@ const Layout = ({ children }) => {
       if (isSidebarOpen && !isCollapsed) {
         // First toggle: collapse to icons
         setIsCollapsed(true);
-      }
-      //  else if (isCollapsed) {
-      //   // Second toggle: hide completely
-      //   setIsCollapsed(false);
-      //   setIsSidebarOpen(false);
-      // }
-      else {
-        // Third toggle: show full sidebar
+      } else {
         setIsSidebarOpen(true);
         setIsCollapsed(false);
       }

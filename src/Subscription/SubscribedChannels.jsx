@@ -17,6 +17,7 @@ import {
   Bookmark,
   PlayIcon,
   Link,
+  VideoOff,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -205,22 +206,49 @@ const SubscribedChannels = () => {
       setShowShareMenu(!showShareMenu);
     };
 
+    // Check if channel has no videos
+    const hasNoVideos =
+      !recentVideo ||
+      !channel.recentVideos ||
+      channel.recentVideos.length === 0;
+
     return (
       <div
-        className={`group overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
+        className={` grid grid-cols-1  overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
           isDarkMode
             ? "bg-gray-900 hover:shadow-2xl "
             : "bg-white hover:shadow-xl "
         }`}
         onClick={() => handleChannelClick(channelId)}
       >
-        {/* Video Thumbnail/Player */}
+        {/* Video Thumbnail/Player or No Content State */}
         <div
           className="relative h-48 overflow-hidden"
-          onMouseEnter={() => handleVideoHover(true)}
-          onMouseLeave={() => handleVideoHover(false)}
+          onMouseEnter={() => !hasNoVideos && handleVideoHover(true)}
+          onMouseLeave={() => !hasNoVideos && handleVideoHover(false)}
         >
-          {recentVideo ? (
+          {hasNoVideos ? (
+            // No videos state
+            <div
+              className={`w-full h-full flex flex-col items-center justify-center ${
+                isDarkMode ? "bg-gray-800" : "bg-gray-100"
+              }`}
+            >
+              <VideoOff
+                size={32}
+                className={`mb-2 ${
+                  isDarkMode ? "text-gray-500" : "text-gray-400"
+                }`}
+              />
+              <p
+                className={`text-sm text-center px-4 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
+                This channel hasn't posted any videos yet
+              </p>
+            </div>
+          ) : (
             <>
               {/* Video thumbnail - shown when not hovered */}
               <img
@@ -275,69 +303,87 @@ const SubscribedChannels = () => {
                 </div>
               )}
             </>
-          ) : (
-            // Fallback gradient when no recent video
-            <div className="w-full h-full bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500">
-              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300"></div>
-            </div>
           )}
         </div>
 
-        {/* Updated Bottom Section with new layout */}
-        {recentVideo && (
-          <div className="p-3">
-            <div className="flex items-start gap-3">
-              {/* Left: Channel Avatar */}
-              <div className="flex-shrink-0">
-                <div className="relative">
-                  <img
-                    src={channel.channelDetails.avatar}
-                    alt={channel.channelDetails.fullName}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                </div>
+        {/* Bottom Section */}
+        <div className="p-3">
+          <div className="flex items-start gap-3">
+            {/* Left: Channel Avatar */}
+            <div className="flex-shrink-0">
+              <div className="relative">
+                <img
+                  src={channel.channelDetails.avatar}
+                  alt={channel.channelDetails.fullName}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
               </div>
+            </div>
 
-              {/* Middle: Video Info Column */}
-              <div className="flex-1  min-w-0">
-                <h3
-                  className={`text-sm font-medium line-clamp-2 mb-1 ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  }`}
-                  onClick={(e) => handleVideoClick(recentVideo._id, e)}
-                >
-                  {recentVideo.title}
-                </h3>
-
-                <p
-                  className={`text-xs mb-1 ${
-                    isDarkMode ? "text-gray-400" : "text-gray-600"
-                  }`}
-                >
-                  {channel.channelDetails.fullName}
-                </p>
-
-                <div className="flex items-center gap-2 text-xs">
-                  <span
-                    className={isDarkMode ? "text-gray-400" : "text-gray-600"}
+            {/* Middle: Channel/Video Info Column */}
+            <div className="flex-1 min-w-0">
+              {hasNoVideos ? (
+                // Show channel info when no videos
+                <>
+                  <h3
+                    className={`text-sm font-medium line-clamp-2 mb-1 ${
+                      isDarkMode ? "text-white" : "text-gray-900"
+                    }`}
                   >
-                    {formatViewCount(recentVideo.views)} views
-                  </span>
-                  <span
-                    className={isDarkMode ? "text-gray-500" : "text-gray-400"}
+                    {channel.channelDetails.fullName}
+                  </h3>
+                  <p
+                    className={`text-xs ${
+                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                    }`}
                   >
-                    •
-                  </span>
-                  <span
-                    className={isDarkMode ? "text-gray-400" : "text-gray-600"}
+                    @{channel.channelDetails.userName}
+                  </p>
+                </>
+              ) : (
+                // Show video info when videos exist
+                <>
+                  <h3
+                    className={`text-sm font-medium line-clamp-2 mb-1 ${
+                      isDarkMode ? "text-white" : "text-gray-900"
+                    }`}
+                    onClick={(e) => handleVideoClick(recentVideo._id, e)}
                   >
-                    {formatTimeAgo(recentVideo.createdAt)}
-                  </span>
-                </div>
-              </div>
+                    {recentVideo.title}
+                  </h3>
 
-              {/* Right: Share Menu */}
+                  <p
+                    className={`text-xs mb-1 ${
+                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
+                    {channel.channelDetails.fullName}
+                  </p>
+
+                  <div className="flex items-center gap-2 text-xs">
+                    <span
+                      className={isDarkMode ? "text-gray-400" : "text-gray-600"}
+                    >
+                      {formatViewCount(recentVideo.views)} views
+                    </span>
+                    <span
+                      className={isDarkMode ? "text-gray-500" : "text-gray-400"}
+                    >
+                      •
+                    </span>
+                    <span
+                      className={isDarkMode ? "text-gray-400" : "text-gray-600"}
+                    >
+                      {formatTimeAgo(recentVideo.createdAt)}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Right: Share Menu - only show if there are videos */}
+            {!hasNoVideos && (
               <div className="flex-shrink-0 relative">
                 <button
                   onClick={handleShareClick}
@@ -409,9 +455,9 @@ const SubscribedChannels = () => {
                   </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Close dropdown when clicking outside */}
         {showShareMenu && (

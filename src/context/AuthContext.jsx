@@ -8,7 +8,7 @@ import {
   resetPassword,
   adminLogin,
   adminRegister,
-  getCurrentAdmin, // Add this import
+  getCurrentAdmin,
 } from "../services/api";
 
 export const AuthContext = createContext();
@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }) => {
     initialAuth();
   }, [token]);
 
-  // Admin authentication effect - UPDATED to use getCurrentAdmin API
+  // Admin authentication effect
   useEffect(() => {
     const initialAdminAuth = async () => {
       // Prevent multiple simultaneous calls
@@ -149,7 +149,7 @@ export const AuthProvider = ({ children }) => {
     initialAdminAuth();
   }, [adminToken]);
 
-  // User login function
+  // User login function - UPDATED to handle account deactivation
   const login = async (credentials) => {
     if (loginInprogress) {
       console.log("Login already in progress, skipping...");
@@ -162,22 +162,67 @@ export const AuthProvider = ({ children }) => {
       console.log("AuthContext: starting login...");
 
       const response = await loginUser(credentials);
-      const receivedToken = response.data.data.accessToken;
 
-      if (!receivedToken) {
-        throw new Error("No token received from server");
+      // Check if login was successful
+      if (response && response.data && response.data.success !== false) {
+        const receivedToken = response.data.data.accessToken;
+
+        if (!receivedToken) {
+          throw new Error("No token received from server");
+        }
+
+        // Store token first
+        setToken(receivedToken);
+
+        // Don't set currentUser here - let useEffect handle it
+        // This prevents the race condition
+
+        return response;
+      } else {
+        // Handle unsuccessful login response
+        throw new Error(response.data?.message || "Login failed");
       }
-
-      // Store token first
-      setToken(receivedToken);
-
-      // Don't set currentUser here - let useEffect handle it
-      // This prevents the race condition
-
-      return response;
     } catch (error) {
       console.log("Login error in authProvider:", error);
       setLoading(false); // Make sure to reset loading on error
+
+      // Check if it's an account deactivation error (403)
+      if (error.response?.status === 403) {
+        const responseData = error.response.data;
+
+        // Check if it's specifically an account deactivation
+        if (
+          responseData?.code === "ACCOUNT_DEACTIVATED" ||
+          responseData?.message?.toLowerCase().includes("deactivated")
+        ) {
+          // Create a specific error object for deactivation
+          const deactivationError = new Error(
+            responseData.message || "Account has been deactivated"
+          );
+          deactivationError.code = "ACCOUNT_DEACTIVATED";
+          deactivationError.deactivationReason =
+            responseData.deactivationReason;
+          deactivationError.deactivatedAt = responseData.deactivatedAt;
+          deactivationError.statusCode = 403;
+          deactivationError.response = error.response;
+
+          throw deactivationError;
+        }
+      }
+
+      // Check for account lock due to too many login attempts (423)
+      if (error.response?.status === 423) {
+        const lockError = new Error(
+          error.response.data?.message || "Account temporarily locked"
+        );
+        lockError.code = "ACCOUNT_LOCKED";
+        lockError.statusCode = 423;
+        lockError.response = error.response;
+
+        throw lockError;
+      }
+
+      // For other errors, throw as usual
       throw error;
     } finally {
       setLoginInProgress(false);
@@ -282,6 +327,19 @@ export const AuthProvider = ({ children }) => {
       return response;
     } catch (error) {
       console.log("Reset password error in authProvider:", error);
+      if (error.response?.status === 400) {
+        // Check if it's a validation error with structured error format
+        if (
+          error.response.data?.errors &&
+          Array.isArray(error.response.data.errors)
+        ) {
+          // Re-throw with validation errors intact for frontend to handle
+          const validationError = new Error("Validation failed");
+          validationError.validationErrors = error.response.data.errors;
+          validationError.response = error.response;
+          throw validationError;
+        }
+      }
       throw error;
     } finally {
       setResetPasswordInProgress(false);
@@ -329,6 +387,11 @@ export const AuthProvider = ({ children }) => {
     );
   };
 
+  // Helper function to check if current user account is active
+  const isUserActive = () => {
+    return currentUser?.isActive !== false;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -344,6 +407,7 @@ export const AuthProvider = ({ children }) => {
         resetPasswordInProgress,
         isAuthenticated,
         isUserAdmin,
+        isUserActive,
 
         // Admin authentication
         adminToken,

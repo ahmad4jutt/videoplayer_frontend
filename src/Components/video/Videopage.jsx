@@ -7,14 +7,18 @@ import {
   togglePublishStatus,
 } from "../../services/api";
 import { useAuth } from "../../hooks/UseAuth";
+import { useTheme } from "../../context/ThemeContext";
 
 const Videopage = () => {
   const { token } = useAuth();
+  const { isDarkMode } = useTheme();
   const [form, setForm] = useState({
     title: "",
     description: "",
     videoFile: null,
     thumbnail: null,
+    category: "",
+    tags: [],
   });
   const [videos, setVideos] = useState([]);
   const [error, setError] = useState("");
@@ -23,7 +27,36 @@ const Videopage = () => {
   const [editForm, setEditForm] = useState({
     title: "",
     description: "",
+    category: "",
+    tags: [],
   });
+  const [tagInput, setTagInput] = useState("");
+  const [editTagInput, setEditTagInput] = useState("");
+
+  // Predefined categories
+  const categories = [
+    "Education",
+    "Entertainment",
+    "Music",
+    "Gaming",
+    "Sports",
+    "Technology",
+    "Travel",
+    "Food",
+    "Lifestyle",
+    "News",
+    "Comedy",
+    "Tutorial",
+    "Review",
+    "Vlog",
+    "Documentary",
+    "Animation",
+    "Art",
+    "Science",
+    "Health",
+    "Business",
+    "Other",
+  ];
 
   useEffect(() => {
     fetchVideos();
@@ -32,15 +65,7 @@ const Videopage = () => {
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      console.log(
-        "Fetching videos with token:",
-        token ? "Token exists" : "No token"
-      );
       const res = await getChannelVideo(token);
-      console.log("Full API response:", res);
-      console.log("Response data:", res.data);
-      console.log("Response data type:", typeof res.data);
-      console.log("Is response data an array?", Array.isArray(res.data));
 
       // Check different possible response structures
       let videosData = [];
@@ -54,18 +79,8 @@ const Videopage = () => {
         }
       }
 
-      console.log("Processed videos data:", videosData);
-      console.log("Number of videos:", videosData.length);
-
-      if (videosData.length > 0) {
-        console.log("First video structure:", videosData[0]);
-        console.log("First video keys:", Object.keys(videosData[0]));
-      }
-
       setVideos(videosData);
     } catch (error) {
-      console.error("Error fetching videos:", error);
-      console.error("Error response:", error.response);
       setError(
         `Failed to fetch videos: ${
           error.response?.data?.message || error.message
@@ -81,11 +96,51 @@ const Videopage = () => {
     setForm({ ...form, [e.target.name]: e.target.files[0] });
   };
 
+  const handleAddTag = (e) => {
+    if (e.key === "Enter" && tagInput.trim()) {
+      e.preventDefault();
+      const newTag = tagInput.trim().toLowerCase();
+      if (!form.tags.includes(newTag)) {
+        setForm((prevForm) => ({
+          ...prevForm,
+          tags: [...prevForm.tags, newTag],
+        }));
+      }
+      setTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setForm((prevForm) => ({
+      ...prevForm,
+      tags: prevForm.tags.filter((tag) => tag !== tagToRemove),
+    }));
+  };
+
+  const handleEditAddTag = (e) => {
+    if (e.key === "Enter" && editTagInput.trim()) {
+      e.preventDefault();
+      const newTag = editTagInput.trim().toLowerCase();
+      if (!editForm.tags.includes(newTag)) {
+        setEditForm({ ...editForm, tags: [...editForm.tags, newTag] });
+      }
+      setEditTagInput("");
+    }
+  };
+
+  const handleEditRemoveTag = (tagToRemove) => {
+    setEditForm({
+      ...editForm,
+      tags: editForm.tags.filter((tag) => tag !== tagToRemove),
+    });
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
+    // Validation
     if (!form.title.trim()) {
       setError("Please enter a video title");
       setLoading(false);
@@ -98,56 +153,52 @@ const Videopage = () => {
       return;
     }
 
+    if (!form.category) {
+      setError("Please select a category");
+      setLoading(false);
+      return;
+    }
+
     const fd = new FormData();
     fd.append("title", form.title.trim());
     fd.append("description", form.description.trim());
+    fd.append("category", form.category);
+
+    // Handle tags
+    const tagsToSend = Array.isArray(form.tags) ? form.tags : [];
+    if (tagsToSend.length > 0) {
+      fd.append("tags", JSON.stringify(tagsToSend));
+    } else {
+      fd.append("tags", JSON.stringify([]));
+    }
 
     if (form.videoFile) {
-      console.log(
-        "Adding video file:",
-        form.videoFile.name,
-        form.videoFile.type,
-        form.videoFile.size
-      );
       fd.append("videoFile", form.videoFile);
     }
+
     if (form.thumbnail) {
-      console.log(
-        "Adding thumbnail:",
-        form.thumbnail.name,
-        form.thumbnail.type,
-        form.thumbnail.size
-      );
       fd.append("thumbnail", form.thumbnail);
     }
 
-    console.log("FormData contents:");
-    for (let [key, value] of fd.entries()) {
-      console.log(key, value);
-    }
-
     try {
-      console.log(
-        "Publishing video with token:",
-        token ? "Token exists" : "No token"
-      );
-      const response = await publishVideo(token, fd);
-      console.log("Publish video response:", response);
+      await publishVideo(token, fd);
       await fetchVideos();
+
+      // Reset form
       setForm({
         title: "",
         description: "",
         videoFile: null,
         thumbnail: null,
+        category: "",
+        tags: [],
       });
+      setTagInput("");
+
+      // Clear file inputs
       const fileInputs = document.querySelectorAll('input[type="file"]');
       fileInputs.forEach((input) => (input.value = ""));
     } catch (error) {
-      console.error("Error publishing video:", error);
-      console.error("Error response:", error.response);
-      console.error("Error status:", error.response?.status);
-      console.error("Error data:", error.response?.data);
-
       let errorMessage = "Failed to upload video";
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -175,20 +226,30 @@ const Videopage = () => {
     setEditForm({
       title: video.title || "",
       description: video.description || "",
+      category: video.category || "",
+      tags: video.tags || [],
     });
+    setEditTagInput("");
   };
 
   const handleUpdateVideo = async (videoId) => {
     try {
       setLoading(true);
-      console.log("Updating video:", videoId, editForm);
-      await updateVideo(token, videoId, editForm);
+
+      // Create update data with tags as JSON string
+      const updateData = {
+        title: editForm.title,
+        description: editForm.description,
+        category: editForm.category,
+        tags: JSON.stringify(editForm.tags),
+      };
+
+      await updateVideo(token, videoId, updateData);
       await fetchVideos();
       setEditingVideo(null);
-      setEditForm({ title: "", description: "" });
+      setEditForm({ title: "", description: "", category: "", tags: [] });
+      setEditTagInput("");
     } catch (error) {
-      console.error("Error updating video:", error);
-      console.error("Error response:", error.response);
       setError(
         `Failed to update video: ${
           error.response?.data?.message || error.message
@@ -202,12 +263,9 @@ const Videopage = () => {
   const handleTogglePublish = async (videoId) => {
     try {
       setLoading(true);
-      console.log("Toggling publish status for video:", videoId);
       await togglePublishStatus(token, videoId);
       await fetchVideos();
     } catch (error) {
-      console.error("Error toggling publish status:", error);
-      console.error("Error response:", error.response);
       setError(
         `Failed to toggle publish status: ${
           error.response?.data?.message || error.message
@@ -222,12 +280,9 @@ const Videopage = () => {
     if (window.confirm("Are you sure you want to delete this video?")) {
       try {
         setLoading(true);
-        console.log("Deleting video:", videoId);
         await deleteVideo(token, videoId);
         await fetchVideos();
       } catch (error) {
-        console.error("Error deleting video:", error);
-        console.error("Error response:", error.response);
         setError(
           `Failed to delete video: ${
             error.response?.data?.message || error.message
@@ -240,28 +295,46 @@ const Videopage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
+    <div
+      className={`min-h-screen p-6 ${
+        isDarkMode
+          ? "bg-gradient-to-br from-gray-900 to-gray-800"
+          : "bg-gradient-to-br from-purple-50 to-blue-50"
+      }`}
+    >
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          <h1
+            className={`text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent`}
+          >
             Video Management
           </h1>
-          <p className="text-gray-600 mt-2">
-            Upload and manage your video content
+          <p
+            className={`mt-2 ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}
+          >
+            Upload and manage your video content with smart categorization
           </p>
         </div>
 
         {/* Error Display */}
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+          <div
+            className={`border-l-4 border-red-500 p-4 rounded-lg ${
+              isDarkMode
+                ? "bg-red-900/20 text-red-300"
+                : "bg-red-50 text-red-700"
+            }`}
+          >
             <div className="flex">
               <div className="ml-3">
-                <p className="text-red-700">{error}</p>
+                <p>{error}</p>
               </div>
               <button
                 onClick={() => setError("")}
-                className="ml-auto text-red-500 hover:text-red-700"
+                className={`ml-auto hover:opacity-70 ${
+                  isDarkMode ? "text-red-400" : "text-red-500"
+                }`}
               >
                 ×
               </button>
@@ -270,7 +343,13 @@ const Videopage = () => {
         )}
 
         {/* Upload Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <div
+          className={`rounded-2xl shadow-xl p-8 border ${
+            isDarkMode
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-100"
+          }`}
+        >
           <div className="flex items-center mb-6">
             <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
               <svg
@@ -287,7 +366,11 @@ const Videopage = () => {
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 ml-4">
+            <h2
+              className={`text-2xl font-bold ml-4 ${
+                isDarkMode ? "text-white" : "text-gray-800"
+              }`}
+            >
               Upload New Video
             </h2>
           </div>
@@ -295,36 +378,108 @@ const Videopage = () => {
           <form onSubmit={onSubmit} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Video Title
+                <label
+                  className={`block text-sm font-semibold mb-2 ${
+                    isDarkMode ? "text-gray-200" : "text-gray-700"
+                  }`}
+                >
+                  Video Title *
                 </label>
                 <input
                   type="text"
                   placeholder="Enter video title..."
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                    isDarkMode
+                      ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                      : "bg-white border-gray-300 text-gray-900"
+                  }`}
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Video File
+                <label
+                  className={`block text-sm font-semibold mb-2 ${
+                    isDarkMode ? "text-gray-200" : "text-gray-700"
+                  }`}
+                >
+                  Category *
+                </label>
+                <select
+                  value={form.category}
+                  onChange={(e) =>
+                    setForm({ ...form, category: e.target.value })
+                  }
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                    isDarkMode
+                      ? "bg-gray-700 border-gray-600 text-white"
+                      : "bg-white border-gray-300 text-gray-900"
+                  }`}
+                  required
+                >
+                  <option value="">Select a category...</option>
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label
+                  className={`block text-sm font-semibold mb-2 ${
+                    isDarkMode ? "text-gray-200" : "text-gray-700"
+                  }`}
+                >
+                  Video File *
                 </label>
                 <input
                   name="videoFile"
                   type="file"
                   accept="video/*"
                   onChange={onFileChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 ${
+                    isDarkMode
+                      ? "bg-gray-700 border-gray-600 text-white"
+                      : "bg-white border-gray-300 text-gray-900"
+                  }`}
                   required
+                />
+              </div>
+
+              <div>
+                <label
+                  className={`block text-sm font-semibold mb-2 ${
+                    isDarkMode ? "text-gray-200" : "text-gray-700"
+                  }`}
+                >
+                  Thumbnail
+                </label>
+                <input
+                  name="thumbnail"
+                  type="file"
+                  accept="image/*"
+                  onChange={onFileChange}
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 ${
+                    isDarkMode
+                      ? "bg-gray-700 border-gray-600 text-white"
+                      : "bg-white border-gray-300 text-gray-900"
+                  }`}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label
+                className={`block text-sm font-semibold mb-2 ${
+                  isDarkMode ? "text-gray-200" : "text-gray-700"
+                }`}
+              >
                 Description
               </label>
               <textarea
@@ -334,21 +489,70 @@ const Videopage = () => {
                   setForm({ ...form, description: e.target.value })
                 }
                 rows="4"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none"
+                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none ${
+                  isDarkMode
+                    ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                    : "bg-white border-gray-300 text-gray-900"
+                }`}
               />
             </div>
 
+            {/* Tags Input Section */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Thumbnail
+              <label
+                className={`block text-sm font-semibold mb-2 ${
+                  isDarkMode ? "text-gray-200" : "text-gray-700"
+                }`}
+              >
+                Tags (for related videos)
               </label>
-              <input
-                name="thumbnail"
-                type="file"
-                accept="image/*"
-                onChange={onFileChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Type a tag and press Enter..."
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleAddTag}
+                  className={`flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                    isDarkMode
+                      ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                      : "bg-white border-gray-300 text-gray-900"
+                  }`}
+                />
+              </div>
+              <p
+                className={`text-sm mt-1 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-500"
+                }`}
+              >
+                Press Enter to add a tag. Tags help users find related videos.
+              </p>
+
+              {form.tags.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {form.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${
+                        isDarkMode
+                          ? "bg-purple-900/50 text-purple-300"
+                          : "bg-purple-100 text-purple-800"
+                      }`}
+                    >
+                      #{tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className={`ml-2 hover:opacity-70 ${
+                          isDarkMode ? "text-purple-400" : "text-purple-600"
+                        }`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <button
@@ -369,7 +573,13 @@ const Videopage = () => {
         </div>
 
         {/* Videos List */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <div
+          className={`rounded-2xl shadow-xl p-8 border ${
+            isDarkMode
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-100"
+          }`}
+        >
           <div className="flex items-center mb-6">
             <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
               <svg
@@ -386,11 +596,21 @@ const Videopage = () => {
                 />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 ml-4">
+            <h2
+              className={`text-2xl font-bold ml-4 ${
+                isDarkMode ? "text-white" : "text-gray-800"
+              }`}
+            >
               Your Videos
             </h2>
             <div className="ml-auto">
-              <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-semibold">
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  isDarkMode
+                    ? "bg-purple-900/50 text-purple-300"
+                    : "bg-purple-100 text-purple-800"
+                }`}
+              >
                 {videos.length} videos
               </span>
             </div>
@@ -399,13 +619,25 @@ const Videopage = () => {
           {loading && !videos.length ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-              <span className="ml-3 text-gray-600">Loading videos...</span>
+              <span
+                className={`ml-3 ${
+                  isDarkMode ? "text-gray-300" : "text-gray-600"
+                }`}
+              >
+                Loading videos...
+              </span>
             </div>
           ) : videos.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div
+                className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-100"
+                }`}
+              >
                 <svg
-                  className="w-12 h-12 text-gray-400"
+                  className={`w-12 h-12 ${
+                    isDarkMode ? "text-gray-500" : "text-gray-400"
+                  }`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -418,10 +650,14 @@ const Videopage = () => {
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">
+              <h3
+                className={`text-xl font-semibold mb-2 ${
+                  isDarkMode ? "text-gray-300" : "text-gray-600"
+                }`}
+              >
                 No videos yet
               </h3>
-              <p className="text-gray-500">
+              <p className={isDarkMode ? "text-gray-400" : "text-gray-500"}>
                 Upload your first video to get started!
               </p>
             </div>
@@ -433,6 +669,8 @@ const Videopage = () => {
                 const videoTitle =
                   video.title || video.name || `Video ${index + 1}`;
                 const videoDescription = video.description || video.desc || "";
+                const videoCategory = video.category || "";
+                const videoTags = video.tags || [];
                 const isPublished =
                   video.published !== undefined
                     ? video.published
@@ -443,7 +681,11 @@ const Videopage = () => {
                 return (
                   <div
                     key={videoId}
-                    className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 bg-gradient-to-r from-gray-50 to-white"
+                    className={`border rounded-xl p-6 hover:shadow-lg transition-all duration-200 ${
+                      isDarkMode
+                        ? "border-gray-600 bg-gradient-to-r from-gray-700 to-gray-800"
+                        : "border-gray-200 bg-gradient-to-r from-gray-50 to-white"
+                    }`}
                   >
                     {editingVideo === videoId ? (
                       <div className="space-y-4">
@@ -453,9 +695,36 @@ const Videopage = () => {
                           onChange={(e) =>
                             setEditForm({ ...editForm, title: e.target.value })
                           }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                            isDarkMode
+                              ? "bg-gray-700 border-gray-600 text-white"
+                              : "bg-white border-gray-300 text-gray-900"
+                          }`}
                           placeholder="Video title"
                         />
+
+                        <select
+                          value={editForm.category}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              category: e.target.value,
+                            })
+                          }
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                            isDarkMode
+                              ? "bg-gray-700 border-gray-600 text-white"
+                              : "bg-white border-gray-300 text-gray-900"
+                          }`}
+                        >
+                          <option value="">Select a category...</option>
+                          {categories.map((category) => (
+                            <option key={category} value={category}>
+                              {category}
+                            </option>
+                          ))}
+                        </select>
+
                         <textarea
                           value={editForm.description}
                           onChange={(e) =>
@@ -464,10 +733,57 @@ const Videopage = () => {
                               description: e.target.value,
                             })
                           }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none ${
+                            isDarkMode
+                              ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                              : "bg-white border-gray-300 text-gray-900"
+                          }`}
                           rows="3"
                           placeholder="Video description"
                         />
+
+                        <div>
+                          <input
+                            type="text"
+                            placeholder="Type a tag and press Enter..."
+                            value={editTagInput}
+                            onChange={(e) => setEditTagInput(e.target.value)}
+                            onKeyDown={handleEditAddTag}
+                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                              isDarkMode
+                                ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                                : "bg-white border-gray-300 text-gray-900"
+                            }`}
+                          />
+                          {editForm.tags.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {editForm.tags.map((tag, tagIndex) => (
+                                <span
+                                  key={tagIndex}
+                                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                                    isDarkMode
+                                      ? "bg-purple-900/50 text-purple-300"
+                                      : "bg-purple-100 text-purple-800"
+                                  }`}
+                                >
+                                  #{tag}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditRemoveTag(tag)}
+                                    className={`ml-1 hover:opacity-70 ${
+                                      isDarkMode
+                                        ? "text-purple-400"
+                                        : "text-purple-600"
+                                    }`}
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
                         <div className="flex gap-3">
                           <button
                             onClick={() => handleUpdateVideo(videoId)}
@@ -477,7 +793,10 @@ const Videopage = () => {
                             Save
                           </button>
                           <button
-                            onClick={() => setEditingVideo(null)}
+                            onClick={() => {
+                              setEditingVideo(null);
+                              setEditTagInput("");
+                            }}
                             className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                           >
                             Cancel
@@ -488,15 +807,23 @@ const Videopage = () => {
                       <div>
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
-                            <h3 className="text-xl font-bold text-gray-800 mb-2">
+                            <h3
+                              className={`text-xl font-bold mb-2 ${
+                                isDarkMode ? "text-white" : "text-gray-800"
+                              }`}
+                            >
                               {videoTitle}
                             </h3>
                             {videoDescription && (
-                              <p className="text-gray-600 mb-3">
+                              <p
+                                className={`mb-3 ${
+                                  isDarkMode ? "text-gray-300" : "text-gray-600"
+                                }`}
+                              >
                                 {videoDescription}
                               </p>
                             )}
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 mb-3">
                               <span
                                 className={`px-3 py-1 rounded-full text-sm font-semibold ${
                                   isPublished
@@ -506,12 +833,39 @@ const Videopage = () => {
                               >
                                 {isPublished ? "Published" : "Draft"}
                               </span>
+                              {videoCategory && (
+                                <span className="px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                                  {videoCategory}
+                                </span>
+                              )}
                               {createdDate && (
-                                <span className="text-sm text-gray-500">
+                                <span
+                                  className={`text-sm ${
+                                    isDarkMode
+                                      ? "text-gray-400"
+                                      : "text-gray-500"
+                                  }`}
+                                >
                                   {new Date(createdDate).toLocaleDateString()}
                                 </span>
                               )}
                             </div>
+                            {videoTags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-3">
+                                {videoTags.map((tag, tagIndex) => (
+                                  <span
+                                    key={tagIndex}
+                                    className={`inline-block px-2 py-1 rounded-full text-xs ${
+                                      isDarkMode
+                                        ? "bg-purple-900/50 text-purple-300"
+                                        : "bg-purple-50 text-purple-700"
+                                    }`}
+                                  >
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
 

@@ -11,12 +11,14 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../hooks/UseAuth";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "../../context/ThemeContext";
 
 import {
   getWatchHistory,
   removeFromWatchHistory,
   clearWatchHistory,
 } from "../../services/api";
+
 const History = () => {
   const [watchHistory, setWatchHistory] = useState([]);
   const [filteredHistory, setFilterdHistory] = useState([]);
@@ -27,6 +29,8 @@ const History = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const { token } = useAuth();
   const navigate = useNavigate();
+  const { isDarkMode } = useTheme();
+
   useEffect(() => {
     fetchWatchHistory();
   }, []);
@@ -150,27 +154,55 @@ const History = () => {
       }
     }
   };
+
   const handleVideoClick = (videoId) => {
     // Navigate to video player page
     navigate(`/video/${videoId}`);
   };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
+      <div
+        className={`min-h-screen p-4 ${
+          isDarkMode ? "bg-gray-900" : "bg-gray-50"
+        }`}
+      >
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-300 rounded w-64 mb-6"></div>
+            <div
+              className={`h-8 rounded w-64 mb-6 ${
+                isDarkMode ? "bg-gray-700" : "bg-gray-300"
+              }`}
+            ></div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[...Array(8)].map((_, index) => (
                 <div
                   key={index}
-                  className="bg-white rounded-lg shadow-md overflow-hidden"
+                  className={`rounded-lg shadow-md overflow-hidden ${
+                    isDarkMode ? "bg-gray-800" : "bg-white"
+                  }`}
                 >
-                  <div className="h-48 bg-gray-300"></div>
+                  <div
+                    className={`h-48 ${
+                      isDarkMode ? "bg-gray-700" : "bg-gray-300"
+                    }`}
+                  ></div>
                   <div className="p-4">
-                    <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                    <div className="h-3 bg-gray-300 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                    <div
+                      className={`h-4 rounded mb-2 ${
+                        isDarkMode ? "bg-gray-700" : "bg-gray-300"
+                      }`}
+                    ></div>
+                    <div
+                      className={`h-3 rounded w-3/4 mb-2 ${
+                        isDarkMode ? "bg-gray-700" : "bg-gray-300"
+                      }`}
+                    ></div>
+                    <div
+                      className={`h-3 rounded w-1/2 ${
+                        isDarkMode ? "bg-gray-700" : "bg-gray-300"
+                      }`}
+                    ></div>
                   </div>
                 </div>
               ))}
@@ -183,13 +215,25 @@ const History = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div
+        className={`min-h-screen flex items-center justify-center p-4 ${
+          isDarkMode ? "bg-gray-900" : "bg-gray-50"
+        }`}
+      >
         <div className="text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          <h2
+            className={`text-2xl font-bold mb-2 ${
+              isDarkMode ? "text-gray-100" : "text-gray-800"
+            }`}
+          >
             Oops! Something went wrong
           </h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p
+            className={`mb-4 ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}
+          >
+            {error}
+          </p>
           <button
             onClick={fetchWatchHistory}
             className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
@@ -202,14 +246,20 @@ const History = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
+    >
       <div className="max-w-7xl mx-auto p-4">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <Clock className="text-blue-500" size={32} />
-              <h1 className="text-3xl font-bold text-gray-800">
+              <h1
+                className={`text-3xl font-bold ${
+                  isDarkMode ? "text-gray-100" : "text-gray-800"
+                }`}
+              >
                 Watch History
               </h1>
             </div>
@@ -227,7 +277,9 @@ const History = () => {
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="relative flex-1">
               <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-400"
+                }`}
                 size={20}
               />
               <input
@@ -235,15 +287,26 @@ const History = () => {
                 placeholder="Search videos or creators..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  isDarkMode
+                    ? "bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400"
+                    : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                }`}
               />
             </div>
             <div className="flex items-center gap-2">
-              <Filter size={20} className="text-gray-400" />
+              <Filter
+                size={20}
+                className={`${isDarkMode ? "text-gray-400" : "text-gray-400"}`}
+              />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  isDarkMode
+                    ? "bg-gray-800 border-gray-600 text-gray-100"
+                    : "bg-white border-gray-300 text-gray-900"
+                }`}
               >
                 <option value="recent">Most Recent</option>
                 <option value="oldest">Oldest First</option>
@@ -254,7 +317,7 @@ const History = () => {
           </div>
 
           {/* Stats */}
-          <div className="text-gray-600">
+          <div className={`${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
             Showing {filteredHistory.length} of {watchHistory.length} videos
           </div>
         </div>
@@ -262,11 +325,20 @@ const History = () => {
         {/* Video Grid */}
         {filteredHistory.length === 0 ? (
           <div className="text-center py-16">
-            <Clock className="mx-auto text-gray-400 mb-4" size={64} />
-            <h2 className="text-2xl font-bold text-gray-600 mb-2">
+            <Clock
+              className={`mx-auto mb-4 ${
+                isDarkMode ? "text-gray-500" : "text-gray-400"
+              }`}
+              size={64}
+            />
+            <h2
+              className={`text-2xl font-bold mb-2 ${
+                isDarkMode ? "text-gray-300" : "text-gray-600"
+              }`}
+            >
               {searchTerm ? "No videos found" : "No watch history yet"}
             </h2>
-            <p className="text-gray-500">
+            <p className={`${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
               {searchTerm
                 ? "Try adjusting your search terms"
                 : "Videos you watch will appear here"}
@@ -277,7 +349,11 @@ const History = () => {
             {filteredHistory.map((video) => (
               <div
                 key={video._id}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group relative"
+                className={`rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group relative ${
+                  isDarkMode
+                    ? "bg-gray-800 hover:shadow-gray-700/20"
+                    : "bg-white"
+                }`}
               >
                 {/* Remove button - Positioned relative to the card */}
                 <button
@@ -332,7 +408,11 @@ const History = () => {
                   className="p-4 cursor-pointer"
                   onClick={() => handleVideoClick(video._id)}
                 >
-                  <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2 hover:text-blue-600">
+                  <h3
+                    className={`font-semibold mb-2 line-clamp-2 hover:text-blue-600 ${
+                      isDarkMode ? "text-gray-100" : "text-gray-800"
+                    }`}
+                  >
                     {video.title}
                   </h3>
 
@@ -342,12 +422,20 @@ const History = () => {
                       alt={video.owner.fullName}
                       className="w-6 h-6 rounded-full"
                     />
-                    <span className="text-sm text-gray-600 hover:text-blue-600">
+                    <span
+                      className={`text-sm hover:text-blue-600 ${
+                        isDarkMode ? "text-gray-300" : "text-gray-600"
+                      }`}
+                    >
                       {video.owner.fullName}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <div
+                    className={`flex items-center gap-4 text-xs ${
+                      isDarkMode ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     <div className="flex items-center gap-1">
                       <Eye size={12} />
                       {formatViews(video.views)} views
@@ -358,7 +446,11 @@ const History = () => {
                     </div>
                   </div>
 
-                  <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                  <p
+                    className={`text-sm mt-2 line-clamp-2 ${
+                      isDarkMode ? "text-gray-300" : "text-gray-600"
+                    }`}
+                  >
                     {video.description}
                   </p>
                 </div>

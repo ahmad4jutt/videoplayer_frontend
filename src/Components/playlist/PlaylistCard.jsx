@@ -6,10 +6,12 @@ import {
   deletePlaylist,
   addVideoToPlaylist,
 } from "../../services/api";
+import { useTheme } from "../../context/ThemeContext";
 import { Link } from "react-router-dom";
 import { Play } from "lucide-react";
 
 export default function PlaylistCard({ playlist, onRefresh, token }) {
+  const { isDarkMode } = useTheme();
   const [loading, setLoading] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -125,7 +127,13 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
 
   if (showEditForm) {
     return (
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 backdrop-blur-sm">
+      <div
+        className={`rounded-2xl shadow-xl border p-8 backdrop-blur-sm ${
+          isDarkMode
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-100"
+        }`}
+      >
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
             <svg
@@ -142,12 +150,22 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
               />
             </svg>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900">Edit Playlist</h3>
+          <h3
+            className={`text-2xl font-bold ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            Edit Playlist
+          </h3>
         </div>
 
         <form onSubmit={handleUpdatePlaylist} className="space-y-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label
+              className={`block text-sm font-semibold mb-2 ${
+                isDarkMode ? "text-gray-300" : "text-gray-700"
+              }`}
+            >
               Playlist Name
             </label>
             <input
@@ -155,12 +173,20 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
               name="name"
               value={editForm.name}
               onChange={handleEditInputChange}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                isDarkMode
+                  ? "border-gray-600 bg-gray-700 text-white hover:bg-gray-600"
+                  : "border-gray-200 bg-gray-50 text-gray-900 hover:bg-white"
+              }`}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label
+              className={`block text-sm font-semibold mb-2 ${
+                isDarkMode ? "text-gray-300" : "text-gray-700"
+              }`}
+            >
               Description
             </label>
             <textarea
@@ -168,7 +194,11 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
               value={editForm.description}
               onChange={handleEditInputChange}
               rows={4}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white resize-none"
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${
+                isDarkMode
+                  ? "border-gray-600 bg-gray-700 text-white hover:bg-gray-600"
+                  : "border-gray-200 bg-gray-50 text-gray-900 hover:bg-white"
+              }`}
               placeholder="Add a description for your playlist..."
             />
           </div>
@@ -208,7 +238,11 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
             <button
               type="button"
               onClick={() => setShowEditForm(false)}
-              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-6 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95"
+              className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                isDarkMode
+                  ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+              }`}
             >
               Cancel
             </button>
@@ -220,7 +254,13 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
 
   if (showAddVideoForm) {
     return (
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 backdrop-blur-sm">
+      <div
+        className={`rounded-2xl shadow-xl border p-8 backdrop-blur-sm ${
+          isDarkMode
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-100"
+        }`}
+      >
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
             <svg
@@ -237,14 +277,22 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
               />
             </svg>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900">
+          <h3
+            className={`text-2xl font-bold ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
             Add Video to Playlist
           </h3>
         </div>
 
         <form onSubmit={handleAddVideo} className="space-y-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label
+              className={`block text-sm font-semibold mb-2 ${
+                isDarkMode ? "text-gray-300" : "text-gray-700"
+              }`}
+            >
               Video ID
             </label>
             <input
@@ -252,7 +300,11 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
               value={videoId}
               onChange={(e) => setVideoId(e.target.value)}
               placeholder="Enter video ID"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                isDarkMode
+                  ? "border-gray-600 bg-gray-700 text-white hover:bg-gray-600"
+                  : "border-gray-200 bg-gray-50 text-gray-900 hover:bg-white"
+              }`}
               required
             />
           </div>
@@ -295,7 +347,11 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
                 setShowAddVideoForm(false);
                 setVideoId("");
               }}
-              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-6 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95"
+              className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                isDarkMode
+                  ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+              }`}
             >
               Cancel
             </button>
@@ -306,7 +362,11 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 transform hover:scale-105 group">
+    <div
+      className={`rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border transform hover:scale-105 group ${
+        isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"
+      }`}
+    >
       {/* Playlist Header */}
       <div className="relative overflow-hidden">
         {playlist.videos &&
@@ -345,20 +405,32 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
       {/* Playlist Info */}
       <div className="p-6">
         <h3
-          className="font-bold text-xl text-gray-900 mb-3 line-clamp-2 leading-tight"
+          className={`font-bold text-xl mb-3 line-clamp-2 leading-tight ${
+            isDarkMode ? "text-white" : "text-gray-900"
+          }`}
           title={playlist.name}
         >
           {playlist.name}
         </h3>
 
         {playlist.description && (
-          <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
+          <p
+            className={`text-sm mb-4 line-clamp-3 leading-relaxed ${
+              isDarkMode ? "text-gray-400" : "text-gray-600"
+            }`}
+          >
             {playlist.description}
           </p>
         )}
 
         {/* Playlist Stats */}
-        <div className="flex items-center text-sm text-gray-500 mb-6 bg-gray-50 rounded-xl p-3">
+        <div
+          className={`flex items-center text-sm mb-6 rounded-xl p-3 ${
+            isDarkMode
+              ? "bg-gray-700 text-gray-400"
+              : "bg-gray-50 text-gray-500"
+          }`}
+        >
           <div className="flex items-center">
             <svg
               className="w-4 h-4 mr-2 text-blue-500"
@@ -380,10 +452,18 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
 
           {playlist.createdAt && (
             <>
-              <span className="mx-3 text-gray-300">•</span>
+              <span
+                className={`mx-3 ${
+                  isDarkMode ? "text-gray-600" : "text-gray-300"
+                }`}
+              >
+                •
+              </span>
               <div className="flex items-center">
                 <svg
-                  className="w-4 h-4 mr-2 text-gray-400"
+                  className={`w-4 h-4 mr-2 ${
+                    isDarkMode ? "text-gray-500" : "text-gray-400"
+                  }`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -453,7 +533,11 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
             <button
               onClick={() => setShowEditForm(true)}
               disabled={loading}
-              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-3 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95"
+              className={`flex-1 py-3 px-3 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                isDarkMode
+                  ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+              }`}
             >
               <div className="flex items-center justify-center gap-2">
                 <svg
@@ -477,7 +561,11 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
               <button
                 onClick={handleRemoveFirstVideo}
                 disabled={loading}
-                className="bg-orange-100 hover:bg-orange-200 text-orange-700 py-3 px-4 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95"
+                className={`py-3 px-4 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  isDarkMode
+                    ? "bg-orange-900/30 hover:bg-orange-900/50 text-orange-400"
+                    : "bg-orange-100 hover:bg-orange-200 text-orange-700"
+                }`}
               >
                 <div className="flex items-center gap-2">
                   {loading ? (
@@ -523,7 +611,11 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
             <button
               onClick={handleDeletePlaylist}
               disabled={loading}
-              className="bg-red-100 hover:bg-red-200 text-red-700 py-3 px-3 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95"
+              className={`py-3 px-3 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                isDarkMode
+                  ? "bg-red-900/30 hover:bg-red-900/50 text-red-400"
+                  : "bg-red-100 hover:bg-red-200 text-red-700"
+              }`}
             >
               <svg
                 className="w-4 h-4"

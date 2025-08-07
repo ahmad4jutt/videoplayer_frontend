@@ -11,6 +11,7 @@ import {
   Phone,
   Upload,
   UserPlus,
+  X,
 } from "lucide-react";
 
 const Registerpage = () => {
@@ -48,32 +49,37 @@ const Registerpage = () => {
     const file = e.target.files[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
-        setError("please select a valid file for avatar");
+        setError("Please select a valid image file for avatar");
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        setError("Avatar image should be less then 5MB");
+        setError("Avatar image should be less than 5MB");
         return;
       }
       setFormData((prev) => ({
         ...prev,
         avatar: file,
       }));
-      //create preview
+      // Create preview
       const reader = new FileReader();
       reader.onload = (e) => setAvatarPreview(e.target.result);
       reader.readAsDataURL(file);
+      // Clear error if avatar was previously missing
+      if (error === "Avatar is required") {
+        setError("");
+      }
     }
   };
+
   const handleCoverImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
-        setError("please set a valid image file for cover image ");
+        setError("Please select a valid image file for cover image");
         return;
       }
-      if (!file.size > 10 * 1024 * 1024) {
-        setError("Cover image size should be less then 10MB");
+      if (file.size > 10 * 1024 * 1024) {
+        setError("Cover image size should be less than 10MB");
         return;
       }
       setFormData((prev) => ({
@@ -86,29 +92,53 @@ const Registerpage = () => {
       reader.readAsDataURL(file);
     }
   };
-  const ValidateForm = () => {
-    if (!formData.fullName.trim()) return "Fullname is required";
+
+  const removeAvatar = () => {
+    setFormData((prev) => ({ ...prev, avatar: null }));
+    setAvatarPreview(null);
+  };
+
+  const removeCoverImage = () => {
+    setFormData((prev) => ({ ...prev, coverImage: null }));
+    setCoverImagePreview(null);
+  };
+
+  const validateForm = () => {
+    if (!formData.fullName.trim()) return "Full name is required";
     if (!formData.userName.trim()) return "Username is required";
     if (!formData.email.trim()) return "Email is required";
     if (!formData.password) return "Password is required";
+    if (!formData.avatar) return "Avatar is required";
     if (formData.password !== formData.confirmPassword)
-      return "Password do not match";
+      return "Passwords do not match";
     if (formData.password.length < 6)
-      return "Password must be atleast 6 characters";
+      return "Password must be at least 6 characters";
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email))
-      return "please enter a valid email address ";
+      return "Please enter a valid email address";
 
     const usernameRegex = /^[a-zA-Z0-9_]+$/;
     if (!usernameRegex.test(formData.userName))
       return "Username can only contain letters, numbers, and underscores";
+
+    if (formData.userName.length < 3)
+      return "Username must be at least 3 characters long";
+
+    // Phone validation (if provided)
+    if (formData.phone && formData.phone.trim()) {
+      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+      if (!phoneRegex.test(formData.phone.trim())) {
+        return "Please enter a valid phone number";
+      }
+    }
+
     return null;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const validationError = ValidateForm();
+    const validationError = validateForm();
     if (validationError) {
       setError(validationError);
       return;
@@ -119,35 +149,41 @@ const Registerpage = () => {
     try {
       const submitFormData = new FormData();
       submitFormData.append("fullName", formData.fullName.trim());
-      submitFormData.append("userName", formData.userName.trim());
-      submitFormData.append("email", formData.email.trim());
+      submitFormData.append("userName", formData.userName.trim().toLowerCase());
+      submitFormData.append("email", formData.email.trim().toLowerCase());
       submitFormData.append("password", formData.password);
 
       if (formData.phone && formData.phone.trim()) {
         submitFormData.append("phone", formData.phone.trim());
       }
 
-      if (formData.avatar) {
-        submitFormData.append("avatar", formData.avatar);
-      }
+      // Avatar is required according to backend
+      submitFormData.append("avatar", formData.avatar);
 
       if (formData.coverImage) {
         submitFormData.append("coverImage", formData.coverImage);
       }
-      console.log("regiseting user");
+
+      console.log("Registering user...");
       const response = await registerUser(submitFormData);
 
       console.log("Registration successful:", response.data);
+
       // Auto-login after successful registration
       try {
         await login({
-          email: formData.email.trim(),
+          email: formData.email.trim().toLowerCase(),
           password: formData.password,
         });
         navigate("/dashboard");
       } catch (loginError) {
         console.log("Auto-login failed, redirecting to login page");
-        navigate("/login");
+        navigate("/login", {
+          state: {
+            message:
+              "Registration successful! Please log in with your credentials.",
+          },
+        });
       }
     } catch (error) {
       console.error("Registration error:", error);
@@ -157,9 +193,11 @@ const Registerpage = () => {
       } else if (error.response?.status === 409) {
         setError("User already exists with this email or username");
       } else if (error.response?.status === 400) {
-        setError("Invalid form data. Please check all fields.");
+        setError("Invalid form data. Please check all fields and try again.");
       } else if (error.response?.status === 500) {
         setError("Server error. Please try again later.");
+      } else if (error.code === "NETWORK_ERROR") {
+        setError("Network error. Please check your connection and try again.");
       } else {
         setError("Registration failed. Please try again.");
       }
@@ -190,59 +228,91 @@ const Registerpage = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Avatar Upload */}
+            {/* Avatar Upload - Required */}
             <div className="text-center">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Profile Picture *
+              </label>
               <div className="mb-4">
                 {avatarPreview ? (
-                  <img
-                    src={avatarPreview}
-                    alt="Avatar preview"
-                    className="mx-auto h-20 w-20 rounded-full object-cover border-4 border-indigo-100"
-                  />
-                ) : (
-                  <div className="mx-auto h-20 w-20 bg-gray-100 rounded-full flex items-center justify-center">
-                    <User className="h-8 w-8 text-gray-400" />
+                  <div className="relative inline-block">
+                    <img
+                      src={avatarPreview}
+                      alt="Avatar preview"
+                      className="mx-auto h-20 w-20 rounded-full object-cover border-4 border-indigo-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeAvatar}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      disabled={loading}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </div>
-                )}
-              </div>
-              <label className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors mr-2">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Avatar
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            {/* Cover Image Upload */}
-            <div className="text-center">
-              <div className="mb-4">
-                {coverImagePreview ? (
-                  <img
-                    src={coverImagePreview}
-                    alt="Cover image preview"
-                    className="mx-auto w-full h-32 rounded-lg object-cover border-4 border-indigo-100"
-                  />
                 ) : (
-                  <div className="mx-auto w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <Upload className="h-8 w-8 text-gray-400" />
-                    <span className="ml-2 text-gray-500">Cover Image</span>
+                  <div className="mx-auto h-20 w-20 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed border-gray-300">
+                    <User className="h-8 w-8 text-gray-400" />
                   </div>
                 )}
               </div>
               <label className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
                 <Upload className="h-4 w-4 mr-2" />
-                Upload Cover Image
+                {avatarPreview ? "Change Avatar" : "Upload Avatar"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                  disabled={loading}
+                />
+              </label>
+              <p className="text-xs text-gray-500 mt-1">Required (Max 5MB)</p>
+            </div>
+
+            {/* Cover Image Upload - Optional */}
+            <div className="text-center">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cover Image
+              </label>
+              <div className="mb-4">
+                {coverImagePreview ? (
+                  <div className="relative">
+                    <img
+                      src={coverImagePreview}
+                      alt="Cover image preview"
+                      className="mx-auto w-full h-32 rounded-lg object-cover border-4 border-indigo-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeCoverImage}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      disabled={loading}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mx-auto w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                    <div className="text-center">
+                      <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <span className="text-gray-500 text-sm">Cover Image</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <label className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                <Upload className="h-4 w-4 mr-2" />
+                {coverImagePreview ? "Change Cover" : "Upload Cover Image"}
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleCoverImageChange}
                   className="hidden"
+                  disabled={loading}
                 />
               </label>
+              <p className="text-xs text-gray-500 mt-1">Optional (Max 10MB)</p>
             </div>
 
             {/* Full Name */}
@@ -278,11 +348,14 @@ const Registerpage = () => {
                   value={formData.userName}
                   onChange={handleInputChange}
                   className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  placeholder="Choose a username"
+                  placeholder="Choose a unique username"
                   required
                   disabled={loading}
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Minimum 3 characters, letters, numbers, and underscores only
+              </p>
             </div>
 
             {/* Email */}
@@ -318,7 +391,7 @@ const Registerpage = () => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  placeholder="Enter your phone number"
+                  placeholder="Enter your phone number (optional)"
                   disabled={loading}
                 />
               </div>
@@ -354,6 +427,7 @@ const Registerpage = () => {
                   )}
                 </button>
               </div>
+              <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
             </div>
 
             {/* Confirm Password */}

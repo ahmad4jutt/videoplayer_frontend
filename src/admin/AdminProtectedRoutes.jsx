@@ -2,8 +2,9 @@ import React, { useContext } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ShieldIcon, AlertTriangle } from "lucide-react";
-
+import { useTheme } from "../context/ThemeContext";
 const AdminProtectedRoute = ({ children, fallbackPath = "/admin/login" }) => {
+  const { isDarkMode } = useTheme();
   const { adminToken, currentAdmin, adminLoading, isAdminAuthenticated } =
     useContext(AuthContext);
   const location = useLocation();
@@ -148,7 +149,9 @@ export const AdminUnauthorized = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+    <div
+      className={`min-h-screen  bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4`}
+    >
       <div className="max-w-md w-full bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-2xl text-center">
         <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <AlertTriangle className="h-8 w-8 text-red-400" />

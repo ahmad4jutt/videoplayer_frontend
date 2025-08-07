@@ -17,7 +17,9 @@ export const registerUser = (formData) =>
   });
 
 export const loginUser = (data) => axios.post(`${USER_BASE_URL}/login`, data);
-
+export const checkLockoutStatus = (data) => {
+  return axios.post(`${USER_BASE_URL}/check-lockout-status`, data);
+};
 export const logoutUser = (token) =>
   axios.post(
     `${USER_BASE_URL}/logout`,
@@ -29,8 +31,11 @@ export const logoutUser = (token) =>
 export const forgotPassword = (email) => {
   return axios.post(`${USER_BASE_URL}/forget-password`, { email });
 };
-export const resetPassword = (token, passwordData) => {
-  return axios.post(`${USER_BASE_URL}/reset-password/${token}`, passwordData);
+export const resetPassword = (token, password) => {
+  return axios.post(`${USER_BASE_URL}/reset-password/${token}`, {
+    password: password, // Wrap the password in an object
+    confirmPassword: password,
+  });
 };
 export const deleteAccount = async (token, data) => {
   try {
@@ -215,7 +220,6 @@ export const toggleAdminStatus = (token, adminId, statusData = {}) =>
     },
   });
 export const getCurrentAdmin = (token) => {
-  console.log("Sending request with token:", token); // Add this line
   return axios.get(`${ADMIN_BASE_URL}/current-admin`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -263,6 +267,84 @@ export const adminDeleteUser = (token, userId, data) =>
       "Content-Type": "application/json",
     },
     data: data, // Contains confirmDelete and reason only super admin can delete users
+  });
+
+//admin setting
+// Admin Settings Management
+export const getSettings = (token) =>
+  axios.get(`${ADMIN_BASE_URL}/settings`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+export const getPublicSettings = async () => {
+  try {
+    const response = await axios.get(`${ADMIN_BASE_URL}/settings/public`);
+    return response;
+  } catch (error) {
+    console.error("Error fetching public settings:", error);
+    throw error;
+  }
+};
+export const updateSettings = (token, settingsData) =>
+  axios.patch(`${ADMIN_BASE_URL}/settings/update`, settingsData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+export const updateSpecificSetting = (token, settingData) =>
+  axios.patch(`${ADMIN_BASE_URL}/settings/update-specific`, settingData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+export const resetSettings = (token) =>
+  axios.patch(
+    `${ADMIN_BASE_URL}/settings/reset`,
+    {},
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+export const regenerateApiKey = (token) =>
+  axios.patch(
+    `${ADMIN_BASE_URL}/settings/api-key/regenerate`,
+    {},
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+// Backup Management
+export const createManualBackup = (token, backupData = {}) =>
+  axios.post(`${ADMIN_BASE_URL}/settings/backup/create`, backupData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+export const getBackupHistory = (token, params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  const url = queryString
+    ? `${ADMIN_BASE_URL}/settings/backup/history?${queryString}`
+    : `${ADMIN_BASE_URL}/settings/backup/history`;
+
+  return axios.get(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
+// Email Testing
+export const testEmailNotification = (token, emailData) =>
+  axios.post(`${ADMIN_BASE_URL}/settings/test-email`, emailData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   });
 // VideoRequest
 export const publishVideo = (token, videoFormData) =>
@@ -480,4 +562,38 @@ export const isUserSubscribed = (token, channelId) =>
   axios.get(`${SUBSCRIPTION_BASE_URL}/check/${channelId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+export const getSubscribedChannelNotifications = (
+  token,
+  page = 1,
+  limit = 20,
+  hoursBack = 168,
+  onlyUnwatched = false
+) =>
+  axios.get(
+    `${SUBSCRIPTION_BASE_URL}/notifications?page=${page}&limit=${limit}&hoursBack=${hoursBack}&onlyUnwatched=${onlyUnwatched}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+export const getRecentNotifications = (token, hoursBack = 24) =>
+  axios.get(
+    `${SUBSCRIPTION_BASE_URL}/notifications?page=1&limit=50&hoursBack=${hoursBack}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+// Function to get notifications summary only (without full video details)
+export const getNotificationsSummary = (token, hoursBack = 168) =>
+  axios
+    .get(
+      `${SUBSCRIPTION_BASE_URL}/notifications?page=1&limit=1&hoursBack=${hoursBack}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    )
+    .then((response) => ({
+      summary: response.data.data.summary,
+      totalNotifications: response.data.data.pagination.totalNotifications,
+    }));
 export const getHealthStatus = () => axios.get(`${HEALTHCHECK_BASE_URL}`);

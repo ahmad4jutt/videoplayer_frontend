@@ -65,7 +65,7 @@ const Asidebar = ({ isOpen, onClose, isCollapsed, isVideoDetailPage }) => {
         } ${isCollapsed && !isVideoDetailPage ? "w-20" : "w-64"}`}
       >
         <div className="flex-1 flex flex-col overflow-y-auto pt-2 pb-4">
-          <nav className="flex-1 px-2 space-y-1">
+          <nav className="flex-1 px-2 space-y-2.5">
             <Link
               to="/"
               onClick={handleItemClick}
@@ -196,17 +196,6 @@ const Asidebar = ({ isOpen, onClose, isCollapsed, isVideoDetailPage }) => {
                         <List className="mr-3 h-5 w-5" />
                         All Playlists
                       </Link>
-
-                      <Link
-                        to="/saved-playlists"
-                        onClick={handleItemClick}
-                        className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive(
-                          "/saved-playlists"
-                        )}`}
-                      >
-                        <BookMarked className="mr-3 h-5 w-5" />
-                        Saved Playlists
-                      </Link>
                     </div>
                   </div>
                 )}
@@ -224,17 +213,6 @@ const Asidebar = ({ isOpen, onClose, isCollapsed, isVideoDetailPage }) => {
                     >
                       <List className="mr-3 h-5 w-5 flex-shrink-0" />
                     </Link>
-
-                    <Link
-                      to="/saved-playlists"
-                      onClick={handleItemClick}
-                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive(
-                        "/saved-playlists"
-                      )}`}
-                      title="Saved Playlists"
-                    >
-                      <BookMarked className="mr-3 h-5 w-5 flex-shrink-0" />
-                    </Link>
                   </>
                 )}
               </>
@@ -242,18 +220,6 @@ const Asidebar = ({ isOpen, onClose, isCollapsed, isVideoDetailPage }) => {
 
             <div className="pt-5">
               <div className="space-y-1">
-                <Link
-                  to="/settings"
-                  onClick={handleItemClick}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive(
-                    "/settings"
-                  )}`}
-                  title={isCollapsed ? "Settings" : ""}
-                >
-                  <Settings className="mr-3 h-5 w-5 flex-shrink-0" />
-                  {!isCollapsed && "Settings"}
-                </Link>
-
                 <Link
                   to="/help"
                   onClick={handleItemClick}

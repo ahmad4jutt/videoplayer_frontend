@@ -10,8 +10,6 @@ import {
   deleteComment,
   toggleCommentLike,
   toggleSubscription,
-  getSubscribedChannels,
-  getUserChannelSubscriber,
   isUserSubscribed,
   getTotalSubscribers,
 } from "../../services/api";
@@ -38,11 +36,17 @@ import {
   Trash2,
   Send,
   X,
+  AlertTriangle,
+  PlayCircle,
+  Settings,
+  Bell,
 } from "lucide-react";
 
 const VideoDetailpage = () => {
-  const { videoId, channelId } = useParams();
+  const { videoId, channelId, userId } = useParams();
   const { currentUser, token } = useAuth();
+  // console.log("currentuser", currentUser.data.avatar);
+
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
@@ -52,12 +56,14 @@ const VideoDetailpage = () => {
 
   // Video states
   const [video, setVideo] = useState(null);
+  const [relatedVideos, setRelatedVideos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [relatedLoading, setRelatedLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
 
-  // Likes states - FIXED: Simplified state management
+  // Likes states
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -75,43 +81,32 @@ const VideoDetailpage = () => {
   const [editingCommentText, setEditingCommentText] = useState("");
   const [deletingCommentId, setDeletingCommentId] = useState(null);
 
-  // Subscription states
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const [subscribing, setSubscribing] = useState(false);
-  const [subscriptionError, setSubscriptionError] = useState(null);
+  // Updated Subscription states to match UserChannelPage
+  const [subscriptionData, setSubscriptionData] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [subscriberLoading, setSubscriberLoading] = useState(false);
-  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
-  // Handle image error for avatars
-  const handleImageError = (e) => {
-    console.log("Image failed to load:", e.target.src);
-  };
+  // Unsubscribe modal states
+  const [showUnsubscribeModal, setShowUnsubscribeModal] = useState(false);
 
-  // FIXED: Fetch video like status function
   const fetchVideoLikeStatus = useCallback(async () => {
     if (!token || !videoId) return { liked: false, likeCount: 0 };
 
     try {
-      console.log("Fetching like status for video:", videoId);
       const response = await getVideoWithLikeStatus(token, videoId);
-      console.log("Like status response:", response);
 
       const videoData = response.data?.data || response.data;
 
       if (!videoData) {
-        console.warn("No video data found in like status response");
         return { liked: false, likeCount: 0 };
       }
 
       const isLiked = videoData.isLikedByUser || false;
       const likeCount = videoData.likesCount || videoData.likes || 0;
 
-      console.log(`Video ${videoId} is liked:`, isLiked);
-      console.log(`Video ${videoId} like count:`, likeCount);
-
       return { liked: isLiked, likeCount: likeCount };
     } catch (error) {
-      console.error("Error fetching video like status:", error);
       return { liked: false, likeCount: 0 };
     }
   }, [token, videoId]);
@@ -148,19 +143,13 @@ const VideoDetailpage = () => {
 
       try {
         setSubscriberLoading(true);
-        console.log("Fetching subscriber count for channel:", channelId);
 
-        // Use the new getTotalSubscribers API
         const response = await getTotalSubscribers(token, channelId);
-        console.log("Subscriber count response:", response);
 
-        // Get the count from the response (based on your controller structure)
         const count = response?.data?.data?.totalSubscribers || 0;
 
-        console.log("Setting subscriber count to:", count);
         setSubscriberCount(count);
       } catch (err) {
-        console.error("Error fetching subscriber count:", err);
         setSubscriberCount(0);
       } finally {
         setSubscriberLoading(false);
@@ -168,117 +157,56 @@ const VideoDetailpage = () => {
     },
     [token]
   );
-  const fetchSubscriptionStatus = useCallback(
-    async (channelId) => {
-      if (!token || !channelId || !currentUser?.data?._id) {
-        setIsLoadingSubscription(false);
-        return;
-      }
-      try {
-        setSubscriptionError(null);
-        setIsLoadingSubscription(true);
-        console.log("Fetching subscription status for channel:", channelId);
 
-        const response = await isUserSubscribed(token, channelId);
-        console.log("Subscription status response:", response);
-
-        const subscriptionData = response?.data?.data;
-        const isChannelSubscribed = subscriptionData?.isSubscribed || false;
-        const isOwnChannel = subscriptionData?.isOwnChannel || false;
-
-        console.log("Is subscribed:", isChannelSubscribed);
-        console.log("Is own channel:", isOwnChannel);
-
-        setIsSubscribed(isChannelSubscribed);
-      } catch (err) {
-        console.error("Error fetching subscription status:", err);
-        setIsSubscribed(false);
-        setSubscriptionError(
-          err.message || "Failed to fetch subscription status"
-        );
-      } finally {
-        setIsLoadingSubscription(false);
-      }
-    },
-    [token, currentUser?.data?._id]
-  );
-
-  useEffect(() => {
-    if (channelId) {
-      fetchSubscriptionStatus(channelId);
-    }
-  }, [channelId, fetchSubscriptionStatus]);
-  // FIXED: Handle subscription with immediate UI update and proper refresh
-  const handleSubscribe = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!token || !video?.owner?._id || subscribing) return;
-
-    const previousSubscribedState = isSubscribed;
-    const previousSubscriberCount = subscriberCount;
+  // Updated: Fetch subscription status to match UserChannelPage
+  const checkSubscriptionStatus = async (channelId) => {
+    if (!token || !channelId) return;
 
     try {
-      setSubscribing(true);
-      setSubscriptionError(null);
+      setSubscriptionLoading(true);
 
-      console.log("Toggling subscription for channel:", video.owner._id);
-      console.log("Current subscription state:", isSubscribed);
+      const response = await isUserSubscribed(token, channelId);
 
-      // Optimistically update UI
-      const newSubscribedState = !previousSubscribedState;
-      setIsSubscribed(newSubscribedState);
-      setSubscriberCount((prev) =>
-        newSubscribedState ? prev + 1 : Math.max(0, prev - 1)
-      );
-
-      // Call the toggle subscription API
-      const response = await toggleSubscription(token, video.owner._id);
-      console.log("Toggle subscription response:", response);
-
-      const responseData = response?.data?.data || response?.data;
-
-      // Update with server response if available
-      if (responseData && typeof responseData.subscribed === "boolean") {
-        setIsSubscribed(responseData.subscribed);
-
-        // Update subscriber count based on server response
-        if (responseData.subscribed && !previousSubscribedState) {
-          // User just subscribed
-          setSubscriberCount(previousSubscriberCount + 1);
-        } else if (!responseData.subscribed && previousSubscribedState) {
-          // User just unsubscribed
-          setSubscriberCount(Math.max(0, previousSubscriberCount - 1));
-        }
-      }
-
-      // Refresh data from server after a short delay to ensure consistency
-      setTimeout(async () => {
-        try {
-          await Promise.all([
-            fetchSubscriptionStatus(video.owner._id),
-            fetchSubscriberCount(video.owner._id),
-          ]);
-          console.log("Refreshed subscription status and count after toggle");
-        } catch (refreshError) {
-          console.error(
-            "Error refreshing data after subscription toggle:",
-            refreshError
-          );
-        }
-      }, 500);
+      setSubscriptionData(response.data.data);
     } catch (err) {
-      console.error("Error toggling subscription:", err);
-
-      // Revert state on error
-      setIsSubscribed(previousSubscribedState);
-      setSubscriberCount(previousSubscriberCount);
-
-      setSubscriptionError(
-        err.response?.data?.message || "Failed to update subscription"
-      );
+      setSubscriptionData(null);
     } finally {
-      setSubscribing(false);
+      setSubscriptionLoading(false);
+    }
+  };
+
+  // Updated: Handle subscription with confirmation modal for unsubscribe
+  const handleSubscription = async () => {
+    if (subscriptionData?.isOwnChannel || !video?.owner?._id) return;
+
+    // Show confirmation modal for unsubscribe
+    if (subscriptionData?.isSubscribed) {
+      setShowUnsubscribeModal(true);
+      return;
+    }
+
+    await performSubscriptionToggle();
+  };
+
+  // Separate function to perform the actual subscription toggle
+  const performSubscriptionToggle = async () => {
+    try {
+      setIsSubscribing(true);
+
+      const response = await toggleSubscription(token, video.owner._id);
+
+      // Update subscription status locally
+      setSubscriptionData((prev) => ({
+        ...prev,
+        isSubscribed: response.data.data.subscribed,
+      }));
+
+      // Refresh subscriber count
+      await fetchSubscriberCount(video.owner._id);
+      setShowUnsubscribeModal(false);
+    } catch (err) {
+    } finally {
+      setIsSubscribing(false);
     }
   };
 
@@ -289,6 +217,7 @@ const VideoDetailpage = () => {
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K subscribers`;
     return `${count} subscribers`;
   };
+
   // FIXED: Fetch video data - only called once on mount
   const fetchVideoData = useCallback(async () => {
     if (!token || !videoId || hasInitialized.current) return;
@@ -298,15 +227,22 @@ const VideoDetailpage = () => {
       setError(null);
       hasInitialized.current = true;
 
-      console.log("Fetching video data for ID:", videoId);
-
-      // Get video details
       const videoResponse = await getVideoById(token, videoId);
-      console.log("Video response:", videoResponse);
 
       let videoData = null;
+      let relatedVideosData = [];
+
+      // Handle the response structure with related videos
       if (videoResponse?.data?.data) {
-        videoData = videoResponse.data.data;
+        const responseData = videoResponse.data.data;
+        if (responseData.video) {
+          // New structure with video and relatedVideos
+          videoData = responseData.video;
+          relatedVideosData = responseData.relatedVideos || [];
+        } else {
+          // Old structure - just video data
+          videoData = responseData;
+        }
       } else if (videoResponse?.data) {
         videoData = videoResponse.data;
       }
@@ -317,24 +253,24 @@ const VideoDetailpage = () => {
       }
 
       setVideo(videoData);
+      setRelatedVideos(relatedVideosData);
 
-      // FIXED: Fetch like status and set properly
+      // Rest of your existing code for likes, subscription, etc.
       const likeStatus = await fetchVideoLikeStatus();
       setLiked(likeStatus.liked);
       setLikeCount(likeStatus.likeCount);
 
-      // Fetch subscription status and subscriber count
-      if (currentUser?.data?._id && videoData.owner?._id) {
-        await fetchSubscriptionStatus(videoData.owner._id);
+      // Updated subscription and subscriber count fetching
+      if (videoData.owner?._id) {
+        await checkSubscriptionStatus(videoData.owner._id);
         await fetchSubscriberCount(videoData.owner._id);
       }
     } catch (err) {
-      console.error("Error fetching video:", err);
       setError(err.response?.data?.message || "Failed to load video");
     } finally {
       setLoading(false);
     }
-  }, [token, videoId, currentUser, fetchVideoLikeStatus, fetchSubscriberCount]);
+  }, [token, videoId, fetchVideoLikeStatus, fetchSubscriberCount]);
 
   // FIXED: Fetch comments with proper like status
   const fetchVideoComments = useCallback(async () => {
@@ -345,7 +281,6 @@ const VideoDetailpage = () => {
       setCommentsError(null);
 
       const response = await getComments(token, videoId);
-      console.log("Comments response:", response);
 
       let commentsData = [];
       if (response?.data?.comments && Array.isArray(response.data.comments)) {
@@ -360,15 +295,12 @@ const VideoDetailpage = () => {
       const commentsWithLikes = await fetchCommentLikes(commentsData);
       setComments(commentsWithLikes);
     } catch (err) {
-      console.error("Error fetching comments:", err);
       setCommentsError("Failed to load comments");
       setComments([]);
     } finally {
       setCommentsLoading(false);
     }
   }, [token, videoId, commentsLoading, fetchCommentLikes]);
-
-  // FIXED: Subscription status fetch
 
   // FIXED: Like handler with proper state management
   const handleLike = async (e) => {
@@ -381,11 +313,7 @@ const VideoDetailpage = () => {
       setLikesLoading(true);
       setLikeError(null);
 
-      console.log("Toggling like for video:", video._id);
-      console.log("Current like state:", liked);
-
       const response = await toggleVideoLike(token, video._id);
-      console.log("Like toggle response:", response);
 
       const responseData = response?.data?.data || response?.data;
 
@@ -406,14 +334,12 @@ const VideoDetailpage = () => {
         setLikeCount(newLikeCount);
         setDisliked(false);
 
-        // Update video object
         setVideo((prev) => ({
           ...prev,
           likesCount: newLikeCount,
           isLikedByUser: newLikedState,
         }));
       } else {
-        // Fallback: refresh like status
         const refreshedStatus = await fetchVideoLikeStatus();
         setLiked(refreshedStatus.liked);
         setLikeCount(refreshedStatus.likeCount);
@@ -485,7 +411,7 @@ const VideoDetailpage = () => {
     }
   };
 
-  // Add comment handler
+  // FIXED: Add comment handler with proper user data handling
   const handleAddComment = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -500,6 +426,8 @@ const VideoDetailpage = () => {
         content: newComment.trim(),
       });
 
+      console.log("Add comment response:", response);
+
       let newCommentData = null;
       if (response?.data?.comment) {
         newCommentData = response.data.comment;
@@ -510,10 +438,22 @@ const VideoDetailpage = () => {
       }
 
       if (newCommentData) {
+        // FIXED: Add current user data to the comment if not present
         const processedComment = {
           ...newCommentData,
           likesCount: newCommentData.likesCount || 0,
           isLiked: newCommentData.isLiked || false,
+          owner: newCommentData.owner || {
+            _id: currentUser?.data?._id || currentUser?.data?.data?._id,
+            fullName:
+              currentUser?.data?.fullName ||
+              currentUser?.data?.data?.fullName ||
+              "You",
+            username:
+              currentUser?.data?.username || currentUser?.data?.data?.username,
+            avatar:
+              currentUser?.data?.avatar || currentUser?.data?.data?.avatar,
+          },
         };
 
         setComments((prev) => [processedComment, ...prev]);
@@ -527,7 +467,7 @@ const VideoDetailpage = () => {
     }
   };
 
-  // Edit comment handler
+  // FIXED: Edit comment handler
   const handleEditComment = async (commentId, e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -535,7 +475,7 @@ const VideoDetailpage = () => {
     if (!token || !editingCommentText.trim()) return;
 
     try {
-      await updateComment(token, commentId, {
+      const response = await updateComment(token, commentId, {
         content: editingCommentText.trim(),
       });
 
@@ -592,6 +532,24 @@ const VideoDetailpage = () => {
     }
   };
 
+  // Handle related video click
+  const handleRelatedVideoClick = (relatedVideoId) => {
+    // Reset state for new video
+    hasInitialized.current = false;
+    viewCountedRef.current = false;
+    setVideo(null);
+    setRelatedVideos([]);
+    setComments([]);
+    setLiked(false);
+    setDisliked(false);
+    setLikeCount(0);
+    setSubscriptionData(null);
+    setSubscriberCount(0);
+
+    // Navigate to new video
+    navigate(`/video/${relatedVideoId}`);
+  };
+
   // Format functions
   const formatViews = (views) => {
     if (!views || views === 0) return "0";
@@ -627,10 +585,9 @@ const VideoDetailpage = () => {
     }
   };
 
-  // FIXED: Single useEffect for initial data loading
+  // Initial data loading
   useEffect(() => {
     if (token && videoId && !hasInitialized.current) {
-      console.log("Initial data fetch triggered");
       fetchVideoData();
     }
   }, [token, videoId, fetchVideoData]);
@@ -642,28 +599,20 @@ const VideoDetailpage = () => {
     }
   }, [video, videoId, token]);
 
-  // FIXED: Reset state when videoId changes
+  // Updated: Reset state when videoId changes
   useEffect(() => {
     if (!videoId || !video?.owner?._id) return;
 
-    // Initialize data when video changes
     const initializeVideoData = async () => {
       try {
-        console.log("Initializing video data for:", videoId);
-
-        // Reset states first
-        setIsSubscribed(false);
+        setSubscriptionData(null);
         setSubscriberCount(0);
-        setSubscriptionError(null);
         setSubscriberLoading(true);
 
-        // Fetch both subscription status and subscriber count
         await Promise.all([
-          fetchSubscriptionStatus(video.owner._id),
+          checkSubscriptionStatus(video.owner._id),
           fetchSubscriberCount(video.owner._id),
         ]);
-
-        console.log("Video data initialization complete");
       } catch (error) {
         console.error("Error initializing video data:", error);
       }
@@ -671,7 +620,6 @@ const VideoDetailpage = () => {
 
     initializeVideoData();
 
-    // Cleanup function
     return () => {
       hasInitialized.current = false;
       viewCountedRef.current = false;
@@ -681,17 +629,11 @@ const VideoDetailpage = () => {
       setLikeError(null);
       setComments([]);
       setCommentsError(null);
-      setIsSubscribed(false);
-      setSubscriptionError(null);
+      setSubscriptionData(null);
       setSubscriberCount(0);
       setSubscriberLoading(false);
     };
-  }, [
-    videoId,
-    video?.owner?._id,
-    fetchSubscriptionStatus,
-    fetchSubscriberCount,
-  ]);
+  }, [videoId, video?.owner?._id, fetchSubscriberCount]);
 
   if (loading) {
     return (
@@ -817,27 +759,70 @@ const VideoDetailpage = () => {
       </div>
     );
   }
+
   const LoadingSpinner = () => (
     <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
   );
+
+  // Unsubscribe Confirmation Modal
+  const UnsubscribeModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div
+        className={`${
+          isDarkMode ? "bg-gray-800" : "bg-white"
+        } rounded-lg p-6 max-w-md mx-4 shadow-xl`}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <AlertTriangle className="text-yellow-500" size={24} />
+          <h3
+            className={`text-lg font-semibold ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            Unsubscribe from {video?.owner?.fullName}?
+          </h3>
+        </div>
+        <p className={`${isDarkMode ? "text-gray-300" : "text-gray-600"} mb-6`}>
+          You won't receive notifications for new videos from this channel.
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setShowUnsubscribeModal(false)}
+            className={`px-4 py-2 rounded-lg ${
+              isDarkMode
+                ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            } transition-colors`}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={performSubscriptionToggle}
+            disabled={isSubscribing}
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50"
+          >
+            {isSubscribing ? (
+              <>
+                <LoadingSpinner />
+                Unsubscribing...
+              </>
+            ) : (
+              "Unsubscribe"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div
       className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
     >
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          className={`flex items-center gap-2 ${
-            isDarkMode
-              ? "text-gray-400 hover:text-white"
-              : "text-gray-600 hover:text-gray-800"
-          } mb-6 transition-colors`}
-        >
-          <ArrowLeft size={20} />
-          Back to Videos
-        </button>
+      {/* Unsubscribe Modal */}
+      {showUnsubscribeModal && <UnsubscribeModal />}
 
+      <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Video Section */}
           <div className="lg:col-span-2">
@@ -1011,49 +996,75 @@ const VideoDetailpage = () => {
                     </div>
                   </div>
                 </Link>
-                <button
-                  onClick={handleSubscribe}
-                  disabled={subscribing || isLoadingSubscription}
-                  className={`px-6 py-2 rounded-full font-medium transition-colors ${
-                    isLoadingSubscription
-                      ? "bg-gray-400 text-white" // Show neutral color while loading
-                      : isSubscribed
-                      ? "bg-gray-500 hover:bg-gray-600 text-white"
-                      : "bg-red-500 hover:bg-red-600 text-white"
-                  } ${
-                    subscribing || isLoadingSubscription
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
-                >
-                  {subscribing ? (
-                    <>
-                      <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Loading...
-                    </>
-                  ) : isLoadingSubscription ? (
-                    <>
-                      <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Checking...
-                    </>
-                  ) : (
-                    <>{isSubscribed ? "Subscribed" : "Subscribe"}</>
-                  )}
-                </button>
-              </div>
 
-              {/* Subscription Error Display */}
-              {subscriptionError && (
-                <div
-                  className={`mt-4 p-3 ${
-                    isDarkMode
-                      ? "bg-red-900 text-red-300"
-                      : "bg-red-100 text-red-700"
-                  } rounded-lg text-sm`}
-                >
-                  {subscriptionError}
-                </div>
-              )}
+                {/* Updated Subscribe Button Section */}
+                {subscriptionLoading ? (
+                  <div className="px-6 py-2 rounded-full bg-gray-100 flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-blue-600 mr-2"></div>
+                    <span className="text-gray-600">Loading...</span>
+                  </div>
+                ) : subscriptionData?.isOwnChannel ? (
+                  <button
+                    className={`px-6 py-2 rounded-full font-medium transition-colors shadow-lg hover:shadow-xl flex items-center ${
+                      isDarkMode
+                        ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                    }`}
+                  >
+                    <Settings size={18} className="mr-2" />
+                    <Link to="/channel">Manage Channel</Link>
+                  </button>
+                ) : subscriptionData ? (
+                  <button
+                    onClick={handleSubscription}
+                    disabled={isSubscribing}
+                    className={`px-6 py-2 rounded-full font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center transform hover:scale-105 ${
+                      subscriptionData.isSubscribed
+                        ? `${
+                            isDarkMode
+                              ? "bg-gray-600 hover:bg-gray-700 text-white border border-gray-500"
+                              : "bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300"
+                          }`
+                        : "bg-red-500 hover:bg-red-600 text-white border border-red-600"
+                    } ${
+                      isSubscribing
+                        ? "opacity-50 cursor-not-allowed scale-100"
+                        : ""
+                    }`}
+                  >
+                    {isSubscribing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                        {subscriptionData.isSubscribed
+                          ? "Unsubscribing..."
+                          : "Subscribing..."}
+                      </>
+                    ) : subscriptionData.isSubscribed ? (
+                      <>
+                        <Bell size={18} className="mr-2 fill-current" />
+                        Subscribed
+                      </>
+                    ) : (
+                      <>
+                        <Bell size={18} className="mr-2" />
+                        Subscribe
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className={`px-6 py-2 rounded-full font-medium flex items-center ${
+                      isDarkMode
+                        ? "bg-gray-700 text-gray-500"
+                        : "bg-gray-100 text-gray-400"
+                    } cursor-not-allowed`}
+                  >
+                    <Bell size={18} className="mr-2" />
+                    Subscribe
+                  </button>
+                )}
+              </div>
 
               {/* Description */}
               <div className="mt-6">
@@ -1103,86 +1114,109 @@ const VideoDetailpage = () => {
               {/* Add Comment Form */}
               {currentUser && (
                 <form onSubmit={handleAddComment} className="mb-6">
-                  <div className="flex gap-3">
-                    {currentUser.data?.avatar ||
-                    currentUser.data?.data.avatar ? (
-                      <img
-                        src={
-                          currentUser.data.avatar ||
-                          currentUser.data?.data.avatar
-                        }
-                        alt={currentUser.data?.fullName || "User"}
-                        className="w-10 h-10 rounded-full object-cover"
-                        onError={handleImageError}
-                        onLoad={() => console.log("Image loaded successfully")}
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                        {currentUser?.data?.fullName
-                          ?.charAt(0)
-                          ?.toUpperCase() || "U"}
+                  <div className="flex gap-3 items-start">
+                    {/* User Avatar */}
+                    <div className="relative w-10 h-10 flex-shrink-0">
+                      {currentUser.avatar ? (
+                        <img
+                          src={currentUser.avatar}
+                          alt={currentUser.fullName || "User"}
+                          className="w-10 h-10 rounded-full object-cover"
+                          onError={(e) => {
+                            console.log(
+                              "Avatar failed to load, showing fallback"
+                            );
+                            e.target.style.display = "none";
+                            e.target.nextElementSibling.style.display = "flex";
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm absolute top-0 left-0"
+                        style={{
+                          display: currentUser.avatar ? "none" : "flex",
+                        }}
+                      >
+                        {(currentUser.fullName || "U").charAt(0).toUpperCase()}
                       </div>
-                    )}
-                    <div className="flex-1">
-                      <textarea
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Add a comment..."
-                        className={`w-full p-3 border ${
-                          isDarkMode
-                            ? "border-gray-600 bg-gray-700 text-white placeholder-gray-400"
-                            : "border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-500"
-                        } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none`}
-                        rows="3"
-                        disabled={addingComment}
-                      />
-                      <div className="flex justify-end gap-2 mt-2">
-                        <button
-                          type="button"
-                          onClick={() => setNewComment("")}
-                          className={`px-4 py-2 ${
+                    </div>
+
+                    {/* Comment Input Container */}
+                    <div className="flex-1 relative">
+                      <div className="relative">
+                        <textarea
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="Add a comment..."
+                          className={`w-full p-4 pr-20 border-0 border-b-2 ${
                             isDarkMode
-                              ? "text-gray-400 hover:text-white"
-                              : "text-gray-600 hover:text-gray-800"
-                          } transition-colors`}
+                              ? "border-gray-600 bg-transparent text-white placeholder-gray-400 focus:border-blue-400"
+                              : "border-gray-300 bg-transparent text-gray-900 placeholder-gray-500 focus:border-blue-500"
+                          } focus:outline-none transition-colors duration-200 resize-none`}
+                          rows="1"
                           disabled={addingComment}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={!newComment.trim() || addingComment}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white rounded-lg transition-colors"
-                        >
-                          {addingComment ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              Posting...
-                            </>
-                          ) : (
-                            <>
-                              <Send size={16} />
-                              Comment
-                            </>
+                          style={{
+                            minHeight: "48px",
+                            lineHeight: "1.5",
+                          }}
+                          onInput={(e) => {
+                            // Auto-resize textarea
+                            e.target.style.height = "48px";
+                            e.target.style.height =
+                              Math.min(e.target.scrollHeight, 120) + "px";
+                          }}
+                        />
+
+                        {/* Send Button Inside Textarea */}
+                        <div className="absolute right-2 bottom-2 flex gap-2">
+                          {newComment.trim() && (
+                            <button
+                              type="button"
+                              onClick={() => setNewComment("")}
+                              className={`p-2 rounded-full ${
+                                isDarkMode
+                                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700"
+                                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                              } transition-all duration-200`}
+                              disabled={addingComment}
+                            >
+                              <X size={16} />
+                            </button>
                           )}
-                        </button>
+
+                          <button
+                            type="submit"
+                            disabled={!newComment.trim() || addingComment}
+                            className={`p-2 rounded-full transition-all duration-200 ${
+                              !newComment.trim() || addingComment
+                                ? isDarkMode
+                                  ? "text-gray-600 cursor-not-allowed"
+                                  : "text-gray-400 cursor-not-allowed"
+                                : "text-white bg-blue-500 hover:bg-blue-600 shadow-md hover:shadow-lg transform hover:scale-105"
+                            }`}
+                          >
+                            {addingComment ? (
+                              <LoadingSpinner size={16} />
+                            ) : (
+                              <Send size={16} />
+                            )}
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Optional: Character count or typing indicator */}
+                      {newComment.trim() && (
+                        <div
+                          className={`text-xs mt-1 ${
+                            isDarkMode ? "text-gray-400" : "text-gray-500"
+                          }`}
+                        >
+                          {newComment.length} characters
+                        </div>
+                      )}
                     </div>
                   </div>
                 </form>
-              )}
-
-              {/* Comments Error Display */}
-              {commentsError && (
-                <div
-                  className={`mb-4 p-3 ${
-                    isDarkMode
-                      ? "bg-red-900 text-red-300"
-                      : "bg-red-100 text-red-700"
-                  } rounded-lg text-sm`}
-                >
-                  {commentsError}
-                </div>
               )}
 
               {/* Comments Loading */}
@@ -1221,7 +1255,7 @@ const VideoDetailpage = () => {
                         isDarkMode ? "bg-gray-700" : "bg-gray-50"
                       } rounded-lg`}
                     >
-                      {comment.owner?.avatar ? (
+                      {comment?.owner?.avatar ? (
                         <img
                           src={comment.owner.avatar}
                           alt={comment.owner?.fullName}
@@ -1315,7 +1349,7 @@ const VideoDetailpage = () => {
                             <span>{comment.likesCount || 0}</span>
                           </button>
 
-                          {currentUser?.data?._id === comment.owner?._id && (
+                          {currentUser._id === comment.owner?._id && (
                             <>
                               <button
                                 onClick={() => {
@@ -1365,7 +1399,7 @@ const VideoDetailpage = () => {
             </div>
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar - Related Videos */}
           <div className="lg:col-span-1">
             <div
               className={`${
@@ -1375,109 +1409,137 @@ const VideoDetailpage = () => {
               <h3
                 className={`text-lg font-semibold ${
                   isDarkMode ? "text-white" : "text-gray-900"
-                } mb-4`}
+                } mb-6 flex items-center gap-2`}
               >
-                Video Details
+                <PlayCircle size={20} />
+                Related Videos
               </h3>
 
+              {/* Related Videos List */}
               <div className="space-y-4">
-                <div>
-                  <label
-                    className={`text-sm font-medium ${
+                {relatedVideos.length === 0 ? (
+                  <div
+                    className={`text-center py-2 ${
                       isDarkMode ? "text-gray-400" : "text-gray-500"
                     }`}
                   >
-                    Duration
-                  </label>
-                  <p
-                    className={`${isDarkMode ? "text-white" : "text-gray-900"}`}
-                  >
-                    {formatDuration(video.duration)}
-                  </p>
-                </div>
-
-                <div>
-                  <label
-                    className={`text-sm font-medium ${
-                      isDarkMode ? "text-gray-400" : "text-gray-500"
-                    }`}
-                  >
-                    Views
-                  </label>
-                  <p
-                    className={`${isDarkMode ? "text-white" : "text-gray-900"}`}
-                  >
-                    {formatViews(video.views)}
-                  </p>
-                </div>
-
-                <div>
-                  <label
-                    className={`text-sm font-medium ${
-                      isDarkMode ? "text-gray-400" : "text-gray-500"
-                    }`}
-                  >
-                    Published
-                  </label>
-                  <p
-                    className={`${isDarkMode ? "text-white" : "text-gray-900"}`}
-                  >
-                    {formatDate(video.createdAt)}
-                  </p>
-                </div>
-
-                {video.owner && (
-                  <div>
-                    <label
-                      className={`text-sm font-medium ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
-                    >
-                      Creator
-                    </label>
-                    <p
-                      className={`${
-                        isDarkMode ? "text-white" : "text-gray-900"
-                      }`}
-                    >
-                      {video.owner.fullName}
-                    </p>
+                    <PlayCircle size={48} className="mx-auto mb-4 opacity-50" />
+                    <p>No related videos found</p>
                   </div>
+                ) : (
+                  relatedVideos.map((relatedVideo) => (
+                    <div
+                      key={relatedVideo._id}
+                      onClick={() => handleRelatedVideoClick(relatedVideo._id)}
+                      className={`flex gap-2 p-3 rounded-lg cursor-pointer transition-colors ${
+                        isDarkMode
+                          ? "hover:bg-gray-700 bg-gray-750"
+                          : "hover:bg-gray-50 bg-gray-25"
+                      }`}
+                    >
+                      {/* Video Thumbnail */}
+                      <div className="relative flex-shrink-0">
+                        <img
+                          src={
+                            relatedVideo.thumbnail?.url ||
+                            "/api/placeholder/160/90"
+                          }
+                          alt={relatedVideo.title}
+                          className="w-40 h-24 object-cover rounded-lg"
+                          onError={(e) => {
+                            e.target.src = "/api/placeholder/160/90";
+                          }}
+                        />
+                        {/* Duration Overlay */}
+                        {relatedVideo.duration && (
+                          <div className="absolute bottom-1 right-1 bg-black bg-opacity-75 text-white text-xs px-1 py-0.5 rounded">
+                            {formatDuration(relatedVideo.duration)}
+                          </div>
+                        )}
+                        {/* Play Icon Overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                          <div className="bg-black bg-opacity-50 rounded-full p-2">
+                            <Play size={20} className="text-white" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Video Info */}
+                      <div className="flex-1 min-w-0">
+                        <h4
+                          className={`font-medium ${
+                            isDarkMode ? "text-white" : "text-gray-900"
+                          } line-clamp-2 mb-1`}
+                          title={relatedVideo.title}
+                        >
+                          {relatedVideo.title}
+                        </h4>
+
+                        {/* Channel Info */}
+                        <div className="flex items-center gap-2 mb-2">
+                          {relatedVideo.owner?.avatar ? (
+                            <img
+                              src={relatedVideo.owner.avatar}
+                              alt={relatedVideo.owner.fullName}
+                              className="w-6 h-6 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
+                              {relatedVideo.owner?.fullName
+                                ?.charAt(0)
+                                ?.toUpperCase() || "U"}
+                            </div>
+                          )}
+                          <span
+                            className={`text-sm ${
+                              isDarkMode ? "text-gray-400" : "text-gray-600"
+                            } truncate`}
+                          >
+                            {relatedVideo.owner?.fullName || "Unknown Creator"}
+                          </span>
+                        </div>
+
+                        {/* Video Stats */}
+                        <div
+                          className={`flex items-center gap-2 text-xs ${
+                            isDarkMode ? "text-gray-500" : "text-gray-500"
+                          }`}
+                        >
+                          <span>{formatViews(relatedVideo.views)} views</span>
+                          <span>•</span>
+                          <span>{formatDate(relatedVideo.createdAt)}</span>
+                        </div>
+
+                        {/* Description Preview */}
+                        {relatedVideo.description && (
+                          <p
+                            className={`text-xs ${
+                              isDarkMode ? "text-gray-500" : "text-gray-500"
+                            } line-clamp-2 mt-1`}
+                          >
+                            {relatedVideo.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
 
-              {/* Action Buttons */}
-              <div className="mt-6 space-y-2">
-                <button
-                  onClick={handleShare}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                >
-                  <Share2 size={16} />
-                  Share Video
-                </button>
-
-                <button
-                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${
-                    isDarkMode
-                      ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  } rounded-lg transition-colors`}
-                >
-                  <Download size={16} />
-                  Download
-                </button>
-
-                <button
-                  className={`w-full flex items-center justify-center gap-2 px-4 py-2 ${
-                    isDarkMode
-                      ? "bg-red-900 text-red-300 hover:bg-red-800"
-                      : "bg-red-100 text-red-700 hover:bg-red-200"
-                  } rounded-lg transition-colors`}
-                >
-                  <Flag size={16} />
-                  Report
-                </button>
-              </div>
+              {/* Show More Button */}
+              {relatedVideos.length > 0 && (
+                <div className="mt-6 text-center">
+                  <button
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isDarkMode
+                        ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    Show More
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

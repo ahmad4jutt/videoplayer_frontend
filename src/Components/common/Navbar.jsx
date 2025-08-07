@@ -3,7 +3,18 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/UseAuth";
 import { useSearch } from "../../context/SearchContext";
 import { useTheme } from "../../context/ThemeContext";
-import { Menu, Search, X, Bell, User, Moon, Sun, LogOut } from "lucide-react";
+import {
+  Menu,
+  Search,
+  X,
+  Bell,
+  User,
+  Moon,
+  Sun,
+  LogOut,
+  Video,
+} from "lucide-react";
+import NotificationModal from "./NotificationModal"; // Import the notification modal
 
 const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
   //safety check
@@ -12,8 +23,15 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
     console.log("Navbar must be used in Authprovider");
     return null;
   }
+
   const { currentUser, logout } = authContext;
-  const { searchQuery, updateSearch, clearSearch } = useSearch();
+  const {
+    searchQuery,
+    updateSearchInput,
+    executeSearch,
+    clearSearch,
+    isSearching,
+  } = useSearch();
   const { isDarkMode, toggleTheme } = useTheme();
 
   const userData = currentUser?.data || currentUser;
@@ -21,30 +39,32 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
   const location = useLocation();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false); // Add notification modal state
 
-  // Sync local search with global search state
-  useEffect(() => {
-    setLocalSearchQuery(searchQuery);
-  }, [searchQuery]);
-
-  // Handle search input change - update both local and global state
+  // Handle search input change - only update input, don't execute search
   const handleSearchChange = (e) => {
     const query = e.target.value;
-    setLocalSearchQuery(query);
-    updateSearch(query); // This will trigger filtering in real-time
+    updateSearchInput(query);
   };
 
   // Handle search form submission
-  const handleSearchSubmit = (e) => {
+  const handleSearchSubmit = async (e) => {
     e.preventDefault();
 
-    // Ensure the search is applied
-    updateSearch(localSearchQuery);
+    if (!searchQuery.trim()) {
+      return;
+    }
 
-    // Navigate to home page if not already there
-    if (location.pathname !== "/") {
-      navigate("/");
+    try {
+      // Execute video search (local filtering)
+      executeSearch(searchQuery, "videos");
+      if (location.pathname !== "/") {
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Search failed:", error);
+      // Still execute search to show error state
+      executeSearch(searchQuery, "videos");
     }
 
     // Close mobile search if open
@@ -53,7 +73,6 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
 
   // Clear search
   const handleClearSearch = () => {
-    setLocalSearchQuery("");
     clearSearch();
   };
 
@@ -65,11 +84,16 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
     setIsMobileSearchOpen(!isMobileSearchOpen);
   };
 
+  // Handle notification bell click
+  const handleNotificationClick = () => {
+    setIsNotificationModalOpen(true);
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
       clearSearch(); // Clear search on logout
-      navigate("/");
+      navigate("/login");
     } catch (error) {
       console.log("Logout failed :", error);
     }
@@ -80,6 +104,20 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
     handleClearSearch();
     navigate("/");
   };
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isUserMenuOpen && !event.target.closest(".user-menu-container")) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isUserMenuOpen]);
 
   return (
     <>
@@ -96,9 +134,9 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
               {/* Burger Menu Button */}
               <button
                 onClick={onSidebarToggle}
-                className={`mr-4 ${
+                className={`mr-1 ${
                   isDarkMode
-                    ? "text-gray-300 hover:text-white hover:bg-gray-700"
+                    ? "text-gray-300 hover:text-white hover:bg-gray-700 "
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 } p-2 rounded-md transition-colors`}
               >
@@ -125,32 +163,55 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
 
             {/* Center - Search Bar (Desktop) */}
             <div className="hidden md:block flex-1 max-w-xl mx-6">
-              <form onSubmit={handleSearchSubmit} className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-gray-400" />
+              <form onSubmit={handleSearchSubmit} className="relative flex">
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    className={`block w-full pl-4 pr-20 py-2 border ${
+                      isDarkMode
+                        ? "border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400"
+                        : "border-gray-300 bg-white text-gray-900 placeholder-gray-500"
+                    } rounded-l-md leading-5 focus:outline-none  `}
+                    placeholder="Search videos..."
+                  />
+
+                  {/* Clear button */}
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      className={`absolute right-1 top-1/2 transform -translate-y-1/2 ${
+                        isDarkMode ? "hover:bg-gray-600" : "hover:bg-gray-100"
+                      } p-1 rounded transition-colors`}
+                    >
+                      <X className="h-4  text-gray-400 hover:text-gray-600" />
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  value={localSearchQuery}
-                  onChange={handleSearchChange}
-                  className={`block w-full pl-10 pr-10 py-2 border ${
-                    isDarkMode
-                      ? "border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400"
-                      : "border-gray-300 bg-white text-gray-900 placeholder-gray-500"
-                  } rounded-md leading-5 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="Search videos..."
-                />
-                {localSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={handleClearSearch}
-                    className={`absolute inset-y-0 right-0 pr-3 flex items-center ${
-                      isDarkMode ? "hover:bg-gray-600" : "hover:bg-gray-100"
-                    } rounded-r-md transition-colors`}
-                  >
-                    <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                  </button>
-                )}
+
+                {/* Search Button */}
+                <button
+                  type="submit"
+                  disabled={!searchQuery.trim() || isSearching}
+                  className={`px-4 py-2 border rounded-r-md transition-colors ${
+                    !searchQuery.trim() || isSearching
+                      ? isDarkMode
+                        ? "bg-gray-700 border-gray-600 text-gray-500 cursor-not-allowed"
+                        : "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
+                      : isDarkMode
+                      ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-700"
+                      : "bg-blue-600 border-blue-600 text-white hover:bg-blue-700"
+                  }`}
+                >
+                  {isSearching ? (
+                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                  ) : (
+                    <Search className="h-5 w-5" />
+                  )}
+                </button>
               </form>
             </div>
 
@@ -193,16 +254,24 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
                   >
                     Upload
                   </Link>
+
+                  {/* Notification Bell - Updated to open modal instead of navigating */}
                   <button
+                    onClick={handleNotificationClick}
                     className={`${
                       isDarkMode
                         ? "text-gray-300 hover:text-white hover:bg-gray-700"
                         : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                    } p-2 rounded-full transition-colors`}
+                    } p-2 rounded-full animate-pulse transition-colors relative`}
                   >
                     <Bell className="h-5 w-5" />
+                    {/* Optional: Add notification badge */}
+                    {/* <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                      3
+                    </span> */}
                   </button>
-                  <div className="relative">
+
+                  <div className="relative user-menu-container">
                     <button
                       onClick={toggleUserMenu}
                       className={`flex items-center ${
@@ -316,35 +385,58 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
                 : "bg-white border-gray-200"
             } border-t px-4 py-3`}
           >
-            <form onSubmit={handleSearchSubmit} className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={localSearchQuery}
-                onChange={handleSearchChange}
-                className={`block w-full pl-10 pr-10 py-2 border ${
-                  isDarkMode
-                    ? "border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400"
-                    : "border-gray-300 bg-white text-gray-900 placeholder-gray-500"
-                } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                placeholder="Search videos..."
-                autoFocus
-              />
-              {localSearchQuery && (
+            <form onSubmit={handleSearchSubmit}>
+              {/* Search Input */}
+              <div className="relative flex">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className={`flex-1 pl-4 pr-12 py-2 border ${
+                    isDarkMode
+                      ? "border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400"
+                      : "border-gray-300 bg-white text-gray-900 placeholder-gray-500"
+                  } rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  placeholder="Search videos..."
+                  autoFocus
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={handleClearSearch}
+                    className="absolute right-12 top-1/2 transform -translate-y-1/2 p-1"
+                  >
+                    <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                  </button>
+                )}
                 <button
-                  type="button"
-                  onClick={handleClearSearch}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  type="submit"
+                  disabled={!searchQuery.trim() || isSearching}
+                  className={`px-4 py-2 rounded-r-md transition-colors ${
+                    !searchQuery.trim() || isSearching
+                      ? isDarkMode
+                        ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
                 >
-                  <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                  {isSearching ? (
+                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                  ) : (
+                    <Search className="h-5 w-5" />
+                  )}
                 </button>
-              )}
+              </div>
             </form>
           </div>
         )}
       </nav>
+
+      {/* Notification Modal */}
+      <NotificationModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+      />
     </>
   );
 };

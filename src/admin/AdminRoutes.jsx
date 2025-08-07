@@ -34,7 +34,14 @@ const AdminRoutes = () => {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="analytics" element={<AdminAnalytics />} />
-          <Route path="settings" element={<AdminSettings />} />
+          <Route
+            path="settings"
+            element={
+              <SuperAdminProtectedRoute>
+                <AdminSettings />
+              </SuperAdminProtectedRoute>
+            }
+          />
 
           {/* Super admin only routes */}
           <Route
