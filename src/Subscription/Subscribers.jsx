@@ -101,49 +101,49 @@ const Subscribers = () => {
     </div>
   );
 
-  const SubscriberCard = ({ subscriber }) => (
-    <div className="group bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg hover:border-blue-200 transition-all duration-200 transform hover:-translate-y-1">
-      <div className="flex items-start space-x-4">
-        <div className="relative">
-          <img
-            src={subscriber.subscriberDetails.avatar}
-            alt={subscriber.subscriberDetails.fullName}
-            className="h-16 w-16 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all duration-200"
-          />
-          <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-green-500 rounded-full border-2 border-white"></div>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 truncate group-hover:text-blue-700 transition-colors">
-              {subscriber.subscriberDetails.fullName}
-            </h3>
-            {/* <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-gray-100">
-              <MoreVertical className="h-4 w-4 text-gray-500" />
-            </button> */}
-          </div>
-          <p className="text-sm text-gray-500 truncate mb-2">
-            @{subscriber.subscriberDetails.userName}
-          </p>
-          <div className="flex items-center text-xs text-gray-400 mb-4">
-            <Calendar className="h-3 w-3 mr-1" />
-            <span>Subscribed recently</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                <UserPlus className="h-3 w-3 mr-1" />
-                Active
-              </span>
-            </div>
-            {/* <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-blue-300 transition-colors group-hover:border-blue-400">
-              <Eye className="h-4 w-4 mr-2" />
-              View Profile
-            </button> */}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  // const SubscriberCard = ({ subscriber }) => (
+  //   <div className="group bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg hover:border-blue-200 transition-all duration-200 transform hover:-translate-y-1">
+  //     <div className="flex items-start space-x-4">
+  //       <div className="relative">
+  //         <img
+  //           src={subscriber.subscriberDetails.avatar}
+  //           alt={subscriber.subscriberDetails.fullName}
+  //           className="h-16 w-16 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-blue-200 transition-all duration-200"
+  //         />
+  //         <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-green-500 rounded-full border-2 border-white"></div>
+  //       </div>
+  //       <div className="flex-1 min-w-0">
+  //         <div className="flex items-center justify-between">
+  //           <h3 className="text-lg font-semibold text-gray-900 truncate group-hover:text-blue-700 transition-colors">
+  //             {subscriber.subscriberDetails.fullName}
+  //           </h3>
+  //           {/* <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-gray-100">
+  //             <MoreVertical className="h-4 w-4 text-gray-500" />
+  //           </button> */}
+  //         </div>
+  //         <p className="text-sm text-gray-500 truncate mb-2">
+  //           @{subscriber.subscriberDetails.userName}
+  //         </p>
+  //         <div className="flex items-center text-xs text-gray-400 mb-4">
+  //           <Calendar className="h-3 w-3 mr-1" />
+  //           <span>Subscribed recently</span>
+  //         </div>
+  //         <div className="flex items-center justify-between">
+  //           <div className="flex items-center space-x-2">
+  //             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+  //               <UserPlus className="h-3 w-3 mr-1" />
+  //               Active
+  //             </span>
+  //           </div>
+  //           {/* <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-blue-300 transition-colors group-hover:border-blue-400">
+  //             <Eye className="h-4 w-4 mr-2" />
+  //             View Profile
+  //           </button> */}
+  //         </div>
+  //       </div>
+  //     </div>
+  //   </div>
+  // );
 
   const StatCard = ({ icon, label, value, color = "blue" }) => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
@@ -243,48 +243,6 @@ const Subscribers = () => {
         </div>
 
         {/* Main Content */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          {/* Search and Filter Bar */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search subscribers by name or username..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                />
-              </div>
-              <button className="inline-flex items-center px-4 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="p-6">
-            {loading ? (
-              <LoadingSpinner />
-            ) : filteredSubscribers.length === 0 ? (
-              <EmptyState />
-            ) : (
-              <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-                {filteredSubscribers.map((subscriber) => (
-                  <SubscriberCard
-                    key={subscriber._id}
-                    subscriber={subscriber}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Pagination */}
-          {!loading && filteredSubscribers.length > 0 && <Pagination />}
-        </div>
       </div>
     </div>
   );

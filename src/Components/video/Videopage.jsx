@@ -299,14 +299,14 @@ const Videopage = () => {
       className={`min-h-screen p-6 ${
         isDarkMode
           ? "bg-gradient-to-br from-gray-900 to-gray-800"
-          : "bg-gradient-to-br from-purple-50 to-blue-50"
+          : "bg-gradient-to-br from-gray-50 to-blue-50"
       }`}
     >
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center">
           <h1
-            className={`text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent`}
+            className={`text-4xl font-bold bg-gradient-to-r from-gray-500 to-gray-700 bg-clip-text text-transparent`}
           >
             Video Management
           </h1>
@@ -351,7 +351,7 @@ const Videopage = () => {
           }`}
         >
           <div className="flex items-center mb-6">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-gradient-to-r from-gray-500 to-gray-700 rounded-xl flex items-center justify-center">
               <svg
                 className="w-6 h-6 text-white"
                 fill="none"
@@ -393,7 +393,7 @@ const Videopage = () => {
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
                     isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                      : "bg-white border-gray-300 text-gray-900"
+                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-900 "
                   }`}
                   required
                 />
@@ -412,7 +412,7 @@ const Videopage = () => {
                   onChange={(e) =>
                     setForm({ ...form, category: e.target.value })
                   }
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 ${
                     isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
@@ -443,7 +443,7 @@ const Videopage = () => {
                   type="file"
                   accept="video/*"
                   onChange={onFileChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-gray-700 hover:file:bg-gray-100 ${
                     isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
@@ -465,10 +465,10 @@ const Videopage = () => {
                   type="file"
                   accept="image/*"
                   onChange={onFileChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:gray-purple-700 hover:file:bg-gray-100 ${
                     isDarkMode
-                      ? "bg-gray-700 border-gray-600 text-white"
-                      : "bg-white border-gray-300 text-gray-900"
+                      ? "bg-gray-700 border-gray-600 text-gray-500"
+                      : "bg-white border-gray-300 text-gray-700"
                   }`}
                 />
               </div>
@@ -525,7 +525,8 @@ const Videopage = () => {
                   isDarkMode ? "text-gray-400" : "text-gray-500"
                 }`}
               >
-                Press Enter to add a tag. Tags help users find related videos.
+                Press Enter to add a unique tag. Tags help users find related
+                videos.
               </p>
 
               {form.tags.length > 0 && (
@@ -535,8 +536,8 @@ const Videopage = () => {
                       key={index}
                       className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${
                         isDarkMode
-                          ? "bg-purple-900/50 text-purple-300"
-                          : "bg-purple-100 text-purple-800"
+                          ? "bg-gray-900/50 text-gray-300"
+                          : "bg-gray-100 text-gray-800"
                       }`}
                     >
                       #{tag}
@@ -544,7 +545,7 @@ const Videopage = () => {
                         type="button"
                         onClick={() => handleRemoveTag(tag)}
                         className={`ml-2 hover:opacity-70 ${
-                          isDarkMode ? "text-purple-400" : "text-purple-600"
+                          isDarkMode ? "text-gray-400" : "text-gray-600"
                         }`}
                       >
                         ×
@@ -558,7 +559,7 @@ const Videopage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-gradient-to-r from-gray-500 to-gray-700 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-gray-700 hover:to-gray-500 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {loading ? (
                 <div className="flex items-center justify-center">
@@ -581,7 +582,7 @@ const Videopage = () => {
           }`}
         >
           <div className="flex items-center mb-6">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-gradient-to-r from-gray-500 to-gray-700 rounded-xl flex items-center justify-center">
               <svg
                 className="w-6 h-6 text-white"
                 fill="none"
@@ -607,8 +608,8 @@ const Videopage = () => {
               <span
                 className={`px-3 py-1 rounded-full text-sm font-semibold ${
                   isDarkMode
-                    ? "bg-purple-900/50 text-purple-300"
-                    : "bg-purple-100 text-purple-800"
+                    ? "bg-gray-900/50 text-gray-300"
+                    : "bg-gray-100 text-gray-800"
                 }`}
               >
                 {videos.length} videos
@@ -618,7 +619,7 @@ const Videopage = () => {
 
           {loading && !videos.length ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
               <span
                 className={`ml-3 ${
                   isDarkMode ? "text-gray-300" : "text-gray-600"

@@ -18,18 +18,7 @@ export default function PlaylistPage() {
       setLoading(true);
       setError(null);
 
-      console.log("=== FETCHING PLAYLISTS ===");
-      console.log("Token:", token);
-      console.log("Current User ID:", currentUser._id);
-      console.log("Making API call to getUserPlaylists...");
-
       const res = await getUserPlaylists(token, currentUser._id);
-
-      console.log("=== API RESPONSE ===");
-      console.log("Full response:", res);
-      console.log("Response data:", res.data);
-      console.log("Response status:", res.status);
-      console.log("Response headers:", res.headers);
 
       // Handle different possible response structures
       let playlistData = [];
@@ -42,9 +31,6 @@ export default function PlaylistPage() {
           playlistData = res.data.data;
         }
       }
-
-      console.log("Processed playlist data:", playlistData);
-      console.log("Number of playlists:", playlistData.length);
 
       setLists(playlistData);
     } catch (err) {

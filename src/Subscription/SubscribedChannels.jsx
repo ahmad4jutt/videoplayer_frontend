@@ -19,7 +19,7 @@ import {
   Link,
   VideoOff,
 } from "lucide-react";
-
+import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/UseAuth";
 import { useTheme } from "../context/ThemeContext";
@@ -200,13 +200,57 @@ const SubscribedChannels = () => {
         }
       }
     };
+    const handleCopyLink = async (e) => {
+      e.stopPropagation();
+      const videoUrl = `${window.location.origin}/video/${recentVideo._id}`;
 
+      try {
+        await navigator.clipboard.writeText(videoUrl);
+        // You might want to show a toast notification here
+        toast.success("Link copied to clipboard");
+      } catch (error) {
+        console.error("Error copying to clipboard:", error);
+        // Fallback for older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = videoUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setShowShareMenu(false);
+    };
+    const handleShare = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const videoUrl = `${window.location.origin}/video/${recentVideo._id}`;
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: recentVideo.title,
+            text: `Check out this video: ${recentVideo.title}`,
+            url: videoUrl,
+          });
+        } catch (error) {
+          console.error("Error sharing:", error);
+        }
+      } else {
+        // Fallback: copy to clipboard
+        try {
+          await navigator.clipboard.writeText(videoUrl);
+          toast("Link copied to clipboard");
+        } catch (error) {
+          console.error("Error copying to clipboard:", error);
+        }
+      }
+      setShowShareMenu(false);
+    };
     const handleShareClick = (e) => {
       e.stopPropagation();
       setShowShareMenu(!showShareMenu);
     };
 
-    // Check if channel has no videos
     const hasNoVideos =
       !recentVideo ||
       !channel.recentVideos ||
@@ -214,21 +258,19 @@ const SubscribedChannels = () => {
 
     return (
       <div
-        className={` grid grid-cols-1  overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
+        className={` grid grid-cols-1  rounded-xl overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
           isDarkMode
-            ? "bg-gray-900 hover:shadow-2xl "
+            ? "bg-gray-900 hover:shadow-xl "
             : "bg-white hover:shadow-xl "
         }`}
         onClick={() => handleChannelClick(channelId)}
       >
-        {/* Video Thumbnail/Player or No Content State */}
         <div
           className="relative h-48 overflow-hidden"
           onMouseEnter={() => !hasNoVideos && handleVideoHover(true)}
           onMouseLeave={() => !hasNoVideos && handleVideoHover(false)}
         >
           {hasNoVideos ? (
-            // No videos state
             <div
               className={`w-full h-full flex flex-col items-center justify-center ${
                 isDarkMode ? "bg-gray-800" : "bg-gray-100"
@@ -254,7 +296,7 @@ const SubscribedChannels = () => {
               <img
                 src={recentVideo.thumbnail.url}
                 alt={recentVideo.title}
-                className={`w-full h-full rounded-xl object-cover transition-all duration-300 ${
+                className={`w-full h-full rounded-t-xl object-cover transition-all duration-300 ${
                   isHovered ? "opacity-0" : "opacity-100"
                 }`}
               />
@@ -263,7 +305,7 @@ const SubscribedChannels = () => {
               <video
                 ref={videoRef}
                 src={recentVideo.videoFile.url}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                className={`absolute inset-0 w-full h-full  object-cover transition-opacity duration-300 ${
                   isHovered ? "opacity-100" : "opacity-0"
                 }`}
                 muted={isMuted}
@@ -410,43 +452,21 @@ const SubscribedChannels = () => {
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-opacity-10 transition-colors duration-200 flex items-center gap-2 ${
                           isDarkMode
                             ? "text-gray-300 hover:bg-white hover:text-white"
-                            : "text-gray-700 hover:bg-gray-900 hover:text-gray-900"
+                            : "text-gray-700 hover:bg-gray-700 hover:text-gray-900"
                         }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Handle share functionality
-                          setShowShareMenu(false);
-                        }}
+                        onClick={handleShare}
                       >
                         <Share2 size={14} />
                         Share
                       </button>
+
                       <button
                         className={`w-full px-4 py-2 text-left text-sm hover:bg-opacity-10 transition-colors duration-200 flex items-center gap-2 ${
                           isDarkMode
                             ? "text-gray-300 hover:bg-white hover:text-white"
                             : "text-gray-700 hover:bg-gray-900 hover:text-gray-900"
                         }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Handle save to playlist functionality
-                          setShowShareMenu(false);
-                        }}
-                      >
-                        <Bookmark size={14} />
-                        Save to playlist
-                      </button>
-                      <button
-                        className={`w-full px-4 py-2 text-left text-sm hover:bg-opacity-10 transition-colors duration-200 flex items-center gap-2 ${
-                          isDarkMode
-                            ? "text-gray-300 hover:bg-white hover:text-white"
-                            : "text-gray-700 hover:bg-gray-900 hover:text-gray-900"
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Handle copy link functionality
-                          setShowShareMenu(false);
-                        }}
+                        onClick={handleCopyLink}
                       >
                         <Link size={14} />
                         Copy link
@@ -473,113 +493,6 @@ const SubscribedChannels = () => {
     );
   };
 
-  const Pagination = () => {
-    const getPageNumbers = () => {
-      const delta = 2;
-      const range = [];
-      const rangeWithDots = [];
-
-      for (
-        let i = Math.max(2, currentPage - delta);
-        i <= Math.min(totalPages - 1, currentPage + delta);
-        i++
-      ) {
-        range.push(i);
-      }
-
-      if (currentPage - delta > 2) {
-        rangeWithDots.push(1, "...");
-      } else {
-        rangeWithDots.push(1);
-      }
-
-      rangeWithDots.push(...range);
-
-      if (currentPage + delta < totalPages - 1) {
-        rangeWithDots.push("...", totalPages);
-      } else if (totalPages > 1) {
-        rangeWithDots.push(totalPages);
-      }
-
-      return rangeWithDots;
-    };
-
-    return (
-      <div
-        className={`px-6 py-4 border-t flex items-center justify-between ${
-          isDarkMode
-            ? "border-gray-700 bg-gray-800"
-            : "border-gray-200 bg-gray-50"
-        }`}
-      >
-        <div
-          className={`text-sm ${
-            isDarkMode ? "text-gray-400" : "text-gray-700"
-          }`}
-        >
-          Showing {(currentPage - 1) * limit + 1} to{" "}
-          {Math.min(currentPage * limit, totalCount)} of {totalCount} channels
-        </div>
-        <div className="flex items-center space-x-1">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              currentPage === 1
-                ? isDarkMode
-                  ? "text-gray-600 cursor-not-allowed"
-                  : "text-gray-400 cursor-not-allowed"
-                : isDarkMode
-                ? "text-gray-300 hover:bg-gray-700 hover:text-white"
-                : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
-            }`}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          {getPageNumbers().map((page, index) => (
-            <button
-              key={index}
-              onClick={() =>
-                typeof page === "number" ? handlePageChange(page) : null
-              }
-              disabled={page === "..."}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                currentPage === page
-                  ? "bg-blue-600 text-white shadow-lg"
-                  : page === "..."
-                  ? isDarkMode
-                    ? "text-gray-600 cursor-default"
-                    : "text-gray-400 cursor-default"
-                  : isDarkMode
-                  ? "text-gray-300 hover:bg-gray-700 hover:text-white"
-                  : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
-              }`}
-            >
-              {page}
-            </button>
-          ))}
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              currentPage === totalPages
-                ? isDarkMode
-                  ? "text-gray-600 cursor-not-allowed"
-                  : "text-gray-400 cursor-not-allowed"
-                : isDarkMode
-                ? "text-gray-300 hover:bg-gray-700 hover:text-white"
-                : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
-            }`}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div
       className={`min-h-screen transition-colors duration-300 ${
@@ -599,18 +512,13 @@ const SubscribedChannels = () => {
             ) : filteredChannels.length === 0 ? (
               <EmptyState />
             ) : (
-              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
+              <div className="grid gap-6 grid-cols-1  md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
                 {filteredChannels.map((channel) => (
                   <ChannelCard key={channel._id} channel={channel} />
                 ))}
               </div>
             )}
           </div>
-
-          {/* Pagination */}
-          {!loading && filteredChannels.length > 0 && totalPages > 1 && (
-            <Pagination />
-          )}
         </div>
       </div>
     </div>

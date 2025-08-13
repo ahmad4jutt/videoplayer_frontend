@@ -212,11 +212,11 @@ const AdminLogin = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-900 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-600 rounded-full mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-600 rounded-full mb-4">
               <Shield className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">Admin Login</h1>
@@ -247,7 +247,7 @@ const AdminLogin = () => {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className={`w-full pl-10 pr-4 py-3 bg-white/10 border rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                      className={`w-full pl-10 pr-4 py-3 bg-white/10 border rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all ${
                         errors.email
                           ? "border-red-400 focus:ring-red-500"
                           : "border-white/30"
@@ -282,7 +282,7 @@ const AdminLogin = () => {
                       name="password"
                       value={formData.password}
                       onChange={handleInputChange}
-                      className={`w-full pl-10 pr-12 py-3 bg-white/10 border rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${
+                      className={`w-full pl-10 pr-12 py-3 bg-white/10 border rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all ${
                         errors.password
                           ? "border-red-400 focus:ring-red-500"
                           : "border-white/30"
@@ -325,7 +325,7 @@ const AdminLogin = () => {
                 <button
                   type="submit"
                   disabled={adminLoginInProgress}
-                  className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent"
+                  className="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-600/50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-transparent"
                 >
                   {adminLoginInProgress ? (
                     <div className="flex items-center justify-center">

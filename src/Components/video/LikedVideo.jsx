@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Heart, Play, User, Eye, Calendar, Clock } from "lucide-react";
+import {
+  Heart,
+  Play,
+  User,
+  Eye,
+  Calendar,
+  Clock,
+  ChevronLeft,
+} from "lucide-react";
 import { useAuth } from "../../hooks/UseAuth";
 import { useTheme } from "../../context/ThemeContext";
 import { getLikedVideos } from "../../services/api";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const LikedVideo = () => {
+  const navigate = useNavigate();
   const [likedVideos, setLikedVideos] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +33,6 @@ const LikedVideo = () => {
 
       const response = await getLikedVideos(token);
 
-      // Fix: Access the correct nested data structure
       if (response.data?.data?.videos) {
         const videos = response.data.data.videos;
 
@@ -48,20 +56,8 @@ const LikedVideo = () => {
     }
   };
 
-  const handleUnlike = async (videoId) => {
-    try {
-      // Optimistically remove from UI
-      setLikedVideos((prevVideos) =>
-        prevVideos.filter((video) => video._id !== videoId)
-      );
-
-      // Here you would call your unlike API
-      // await unlikeVideo(token, videoId);
-    } catch (err) {
-      // Revert optimistic update on error
-      fetchLikedVideos();
-      console.error("Error unliking video:", err);
-    }
+  const handleBack = () => {
+    navigate(-1);
   };
 
   const formatDuration = (seconds) => {
@@ -202,10 +198,18 @@ const LikedVideo = () => {
         isDarkMode ? "bg-gray-900" : "bg-white"
       } min-h-screen transition-colors duration-200`}
     >
+      <button
+        onClick={handleBack}
+        className="inline-flex items-center space-x-1 text-gray-500 hover:text-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        <span className="text-sm font-medium">Back</span>
+      </button>
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center space-x-3 mb-2">
-          <Heart className="w-8 h-8 text-red-600 fill-current" />
+          {/* <Heart className="w-8 h-8 text-red-600 fill-current" /> */}
+
           <h1
             className={`text-3xl font-bold ${
               isDarkMode ? "text-white" : "text-gray-900"
@@ -253,29 +257,31 @@ const LikedVideo = () => {
             } rounded-xl transition-all duration-200`}
           >
             {/* Thumbnail */}
-            <Link to={`/video/${video._id}`}>
-              <div className="relative group cursor-pointer">
+
+            <div className="relative group cursor-pointer">
+              <Link to={`/video/${video._id}`}>
                 <img
                   src={video.thumbnail?.url || video.thumbnail}
                   alt={video.title}
                   className="w-full h-48 object-cover rounded-t-lg"
                 />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-t-lg flex items-center justify-center">
+                <div className="absolute inset-0 bg-transparent bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-t-lg flex items-center justify-center">
                   <Play className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs">
                   {formatDuration(video.duration)}
                 </div>
-                {/* Unlike button */}
-                <button
-                  onClick={() => handleUnlike(video._id)}
-                  className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all"
-                  title="Unlike video"
-                >
-                  <Heart className="w-4 h-4 fill-current" />
-                </button>
-              </div>
-            </Link>
+              </Link>
+              {/* Unlike button */}
+              {/* <button
+                onClick={() => handleUnlike(video._id)}
+                className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                title="Unlike video"
+              >
+                <Heart className="w-4 h-4 fill-current" />
+              </button> */}
+            </div>
+
             {/* Video Info */}
             <div className="p-4">
               <h3
@@ -322,18 +328,6 @@ const LikedVideo = () => {
           </div>
         ))}
       </div>
-
-      {/* Pagination Info (optional) */}
-      {pagination && (
-        <div
-          className={`mt-8 text-center text-sm ${
-            isDarkMode ? "text-gray-400" : "text-gray-600"
-          }`}
-        >
-          Page {pagination.currentPage} of {pagination.totalPages} (
-          {pagination.totalVideos} total videos)
-        </div>
-      )}
     </div>
   );
 };

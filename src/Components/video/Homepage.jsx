@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   getAllVideos,
   addToWatchHistory,
@@ -15,7 +15,6 @@ const Homepage = () => {
   const { activeSearchQuery, filterVideos, searchType } = useSearch();
   const { isDarkMode } = useTheme();
   const [videos, setVideos] = useState([]);
-  const [displayedVideos, setDisplayedVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -31,37 +30,45 @@ const Homepage = () => {
     "Discover amazing content"
   );
 
-  // Available categories based on your schema
-  const categories = [
-    "All",
-    "Education",
-    "Entertainment",
-    "Music",
-    "Gaming",
-    "Sports",
-    "Technology",
-    "Travel",
-    "Food",
-    "Lifestyle",
-    "News",
-    "Comedy",
-    "Tutorial",
-    "Review",
-    "Vlog",
-    "Documentary",
-    "Animation",
-    "Art",
-    "Science",
-    "Health",
-    "Business",
-    "Other",
-  ];
+  // Memoize categories to prevent recreation on every render
+  const categories = useMemo(
+    () => [
+      "All",
+      "Education",
+      "Entertainment",
+      "Music",
+      "Gaming",
+      "Sports",
+      "Technology",
+      "Travel",
+      "Food",
+      "Lifestyle",
+      "News",
+      "Comedy",
+      "Tutorial",
+      "Review",
+      "Vlog",
+      "Documentary",
+      "Animation",
+      "Art",
+      "Science",
+      "Health",
+      "Business",
+      "Other",
+    ],
+    []
+  );
 
-  // Fetch settings to check maintenance mode and site info
+  // Fetch settings - only runs once on mount
   useEffect(() => {
+    let isMounted = true;
+
     const fetchSettings = async () => {
       try {
         const response = await getPublicSettings();
+
+        if (!isMounted) return; // Prevent state updates if component unmounted
+
         const settings = response.data.data;
 
         // Set general site settings
@@ -82,116 +89,151 @@ const Homepage = () => {
           setScheduledMaintenance(settings.maintenance.scheduledMaintenance);
         }
       } catch (error) {
-        console.error("Error fetching settings:", error);
-        // Continue loading even if settings fetch fails
+        if (isMounted) {
+          console.error("Error fetching settings:", error);
+        }
       }
     };
 
     fetchSettings();
-  }, []);
 
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Empty dependency array - runs only once
+
+  // Fetch videos - only when token changes
   useEffect(() => {
+    let isMounted = true;
+
     const fetchVideos = async () => {
       if (!token) {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
         return;
       }
+
       try {
-        setLoading(true);
-        setError(false);
+        if (isMounted) {
+          setLoading(true);
+          setError(null);
+        }
+
         const response = await getAllVideos(token);
+
+        if (!isMounted) return; // Prevent state updates if component unmounted
+
         const apiData = response.data.data;
         const videoData = apiData?.videos || apiData || [];
 
         if (Array.isArray(videoData)) {
           setVideos(videoData);
-          setDisplayedVideos(videoData);
         } else {
           console.error("Expected array but got:", typeof videoData, videoData);
           setVideos([]);
-          setDisplayedVideos([]);
           setError("Invalid data format received from server");
         }
       } catch (error) {
-        console.error("Error fetching videos:", error);
-        setError(error.response?.data?.message || "Failed to load videos");
-        setVideos([]);
-        setDisplayedVideos([]);
+        if (isMounted) {
+          console.error("Error fetching videos:", error);
+          setError(error.response?.data?.message || "Failed to load videos");
+          setVideos([]);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
+
     fetchVideos();
-  }, [token]);
 
-  // Filter videos based on active search query and selected category
-  useEffect(() => {
-    if (videos.length > 0) {
-      let filtered = videos;
+    return () => {
+      isMounted = false;
+    };
+  }, [token]); // Only depend on token
 
-      // Filter by category first
-      if (selectedCategory !== "All") {
-        filtered = filtered.filter(
-          (video) => video.category === selectedCategory
-        );
-      }
+  // Memoize filtered videos to prevent recalculation on every render
+  const displayedVideos = useMemo(() => {
+    if (videos.length === 0) return [];
 
-      // Then apply search filter (only if there's an active search and we're searching videos)
-      if (activeSearchQuery && searchType === "videos") {
-        filtered = filterVideos(filtered, activeSearchQuery);
-      }
+    let filtered = videos;
 
-      setDisplayedVideos(filtered);
-    } else {
-      setDisplayedVideos([]);
+    // Filter by category first
+    if (selectedCategory !== "All") {
+      filtered = filtered.filter(
+        (video) => video.category === selectedCategory
+      );
     }
+
+    // Then apply search filter (only if there's an active search and we're searching videos)
+    if (activeSearchQuery && searchType === "videos") {
+      filtered = filterVideos(filtered, activeSearchQuery);
+    }
+
+    return filtered;
   }, [activeSearchQuery, videos, filterVideos, selectedCategory, searchType]);
 
-  const handleCategoryClick = (category) => {
+  // Memoize category click handler to prevent recreation
+  const handleCategoryClick = useCallback((category) => {
     setSelectedCategory(category);
-  };
+  }, []);
 
-  const handleVideoClick = async (videoId) => {
-    // Don't allow video clicks during maintenance mode
-    if (maintenanceMode) {
-      return;
-    }
+  // Memoize video click handler to prevent recreation
+  const handleVideoClick = useCallback(
+    async (videoId) => {
+      // Don't allow video clicks during maintenance mode
+      if (maintenanceMode) {
+        return;
+      }
 
-    if (!token) {
-      console.warn("No token available for watch history");
-      return;
-    }
+      if (!token) {
+        console.warn("No token available for watch history");
+        return;
+      }
 
-    if (!videoId) {
-      console.warn("No video ID provided");
-      return;
-    }
+      if (!videoId) {
+        console.warn("No video ID provided");
+        return;
+      }
 
-    try {
       try {
         await addToWatchHistory(token, videoId);
-        return;
       } catch (error) {
-        console.log(error.response?.status, error.response?.data);
+        console.error("Failed to add to watch history:", error);
       }
-    } catch (error) {
-      console.error("Failed to add to watch history:", error);
-    }
-  };
+    },
+    [token, maintenanceMode]
+  );
 
-  // Get video count for each category
-  const getCategoryCount = (category) => {
-    if (category === "All") return videos.length;
-    return videos.filter((video) => video.category === category).length;
-  };
+  // Memoize category count function
+  const getCategoryCount = useCallback(
+    (category) => {
+      if (category === "All") return videos.length;
+      return videos.filter((video) => video.category === category).length;
+    },
+    [videos]
+  );
 
-  // Check if we should show search results message
-  const isSearchActive = activeSearchQuery && searchType === "videos";
-  const hasSearchResults = isSearchActive && displayedVideos.length > 0;
-  const hasNoSearchResults = isSearchActive && displayedVideos.length === 0;
+  // Memoize search state flags
+  const searchFlags = useMemo(
+    () => ({
+      isSearchActive: activeSearchQuery && searchType === "videos",
+      hasSearchResults:
+        activeSearchQuery &&
+        searchType === "videos" &&
+        displayedVideos.length > 0,
+      hasNoSearchResults:
+        activeSearchQuery &&
+        searchType === "videos" &&
+        displayedVideos.length === 0,
+    }),
+    [activeSearchQuery, searchType, displayedVideos.length]
+  );
 
-  // Maintenance Mode Banner Component (Compact)
-  const MaintenanceBanner = () => {
+  // Maintenance Mode Banner Component (Memoized)
+  const MaintenanceBanner = useMemo(() => {
     if (!maintenanceMode) return null;
 
     return (
@@ -262,7 +304,30 @@ const Homepage = () => {
         </div>
       </div>
     );
-  };
+  }, [maintenanceMode, isDarkMode, maintenanceMessage, scheduledMaintenance]);
+
+  // Memoize site title component
+  const SiteTitle = useMemo(
+    () => (
+      <h1
+        className={`text-4xl font-bold ${
+          isDarkMode ? "text-white" : "text-gray-800"
+        } mb-2`}
+      >
+        <span className="text-red-600 text-4xl font-bold">
+          {siteName.slice(0, 3)}
+        </span>
+        <span
+          className={`${
+            isDarkMode ? "text-white" : "text-gray-800"
+          } text-4xl font-bold`}
+        >
+          {siteName.slice(3)}
+        </span>
+      </h1>
+    ),
+    [siteName, isDarkMode]
+  );
 
   // Loading state
   if (loading) {
@@ -275,26 +340,10 @@ const Homepage = () => {
         }`}
       >
         <div className="container mx-auto px-4 py-8">
-          {/* Show maintenance banner even during loading if needed */}
-          <MaintenanceBanner />
+          {MaintenanceBanner}
 
           <div className="text-center mb-8">
-            <h1
-              className={`text-4xl font-bold ${
-                isDarkMode ? "text-white" : "text-gray-800"
-              } mb-2`}
-            >
-              <span className="text-red-600 text-4xl font-bold">
-                {siteName.slice(0, 3)}
-              </span>
-              <span
-                className={`${
-                  isDarkMode ? "text-white" : "text-gray-800"
-                } text-4xl font-bold`}
-              >
-                {siteName.slice(3)}
-              </span>
-            </h1>
+            {SiteTitle}
             <p className={`${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
               {siteDescription}
             </p>
@@ -345,7 +394,7 @@ const Homepage = () => {
         }`}
       >
         <div className="container mx-auto px-4 py-8">
-          <MaintenanceBanner />
+          {MaintenanceBanner}
 
           <div className="flex items-center justify-center">
             <div
@@ -393,28 +442,13 @@ const Homepage = () => {
       >
         <div className="container mx-auto px-4 py-8">
           <div className="text-center mb-8">
-            <h1
-              className={`text-4xl font-bold ${
-                isDarkMode ? "text-white" : "text-gray-800"
-              } mb-2`}
-            >
-              <span className="text-red-600 text-4xl font-bold">
-                {siteName.slice(0, 3)}
-              </span>
-              <span
-                className={`${
-                  isDarkMode ? "text-white" : "text-gray-800"
-                } text-4xl font-bold`}
-              >
-                {siteName.slice(3)}
-              </span>
-            </h1>
+            {SiteTitle}
             <p className={`${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
               {siteDescription}
             </p>
           </div>
 
-          <MaintenanceBanner />
+          {MaintenanceBanner}
 
           <div className="text-center py-16">
             <div
@@ -441,7 +475,7 @@ const Homepage = () => {
   }
 
   // No search results state
-  if (hasNoSearchResults) {
+  if (searchFlags.hasNoSearchResults) {
     return (
       <div
         className={`min-h-screen ${
@@ -470,7 +504,7 @@ const Homepage = () => {
             </h1>
           </div>
 
-          <MaintenanceBanner />
+          {MaintenanceBanner}
 
           {/* Category Filter */}
           <div className="mb-8 overflow-x-auto">
@@ -483,7 +517,7 @@ const Homepage = () => {
                   <button
                     key={category}
                     onClick={() => handleCategoryClick(category)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                    className={`px-4 py-2  text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                       selectedCategory === category
                         ? "bg-blue-500 text-white shadow-lg"
                         : isDarkMode
@@ -547,7 +581,7 @@ const Homepage = () => {
   if (
     selectedCategory !== "All" &&
     displayedVideos.length === 0 &&
-    !isSearchActive
+    !searchFlags.isSearchActive
   ) {
     return (
       <div
@@ -575,7 +609,7 @@ const Homepage = () => {
             </h1>
           </div>
 
-          <MaintenanceBanner />
+          {MaintenanceBanner}
 
           {/* Category Filter */}
           <div className="mb-8 overflow-x-auto">
@@ -588,7 +622,7 @@ const Homepage = () => {
                   <button
                     key={category}
                     onClick={() => handleCategoryClick(category)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                    className={`px-4 py-2 text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                       selectedCategory === category
                         ? "bg-blue-500 text-white shadow-lg transform scale-105"
                         : isDarkMode
@@ -638,7 +672,7 @@ const Homepage = () => {
     >
       <div className="container mx-auto px-4 py-8">
         {/* Maintenance Banner - shows at the top */}
-        <MaintenanceBanner />
+        {MaintenanceBanner}
 
         {/* Header */}
         <div className="text-center mb-8">
@@ -661,7 +695,7 @@ const Homepage = () => {
               isDarkMode ? "text-gray-300" : "text-gray-600"
             } max-w-2xl mx-auto`}
           >
-            {hasSearchResults
+            {searchFlags.hasSearchResults
               ? `Search results for "${activeSearchQuery}"`
               : selectedCategory !== "All"
               ? `${selectedCategory} Videos`
@@ -670,7 +704,7 @@ const Homepage = () => {
         </div>
 
         {/* Category Filter - Hide when searching */}
-        {!isSearchActive && (
+        {!searchFlags.isSearchActive && (
           <div className="mb-8 overflow-x-auto">
             <div className="flex space-x-2 pb-2 min-w-max">
               {categories.map((category) => {
@@ -681,15 +715,15 @@ const Homepage = () => {
                   <button
                     key={category}
                     onClick={() => handleCategoryClick(category)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                    className={`px-4 py-2 rounded-sm text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                       selectedCategory === category
-                        ? "bg-blue-500 text-white shadow-lg transform scale-105"
+                        ? "bg-gray-500 text-white shadow-lg transform scale-105"
                         : isDarkMode
                         ? "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:shadow-md"
                         : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm hover:shadow-md"
                     }`}
                   >
-                    {category} ({count})
+                    {category}
                   </button>
                 );
               })}
@@ -697,41 +731,11 @@ const Homepage = () => {
           </div>
         )}
 
-        {/* Results Info */}
-        <div className="mb-6 flex items-center justify-center space-x-2">
-          <span
-            className={`${
-              isDarkMode
-                ? "bg-blue-900 text-blue-200"
-                : "bg-blue-100 text-blue-800"
-            } px-3 py-1 text-sm font-medium rounded`}
-          >
-            {displayedVideos.length}{" "}
-            {displayedVideos.length === 1 ? "Video" : "Videos"}
-            {hasSearchResults && ` found for "${activeSearchQuery}"`}
-            {selectedCategory !== "All" &&
-              !isSearchActive &&
-              ` in ${selectedCategory}`}
-          </span>
-          {(hasSearchResults ||
-            (selectedCategory !== "All" && !isSearchActive)) && (
-            <span
-              className={`${
-                isDarkMode
-                  ? "bg-gray-700 text-gray-300"
-                  : "bg-gray-100 text-gray-600"
-              } px-3 py-1 text-sm font-medium rounded`}
-            >
-              out of {videos.length} total
-            </span>
-          )}
-        </div>
-
         {/* Video Grid - Videos are displayed even in maintenance mode */}
         <div className="grid xl:grid-cols-3 lg:grid-cols-3 md:grid-cols-1 sm:grid-cols-1 gap-6">
           {displayedVideos.map((video, index) => (
             <div
-              key={video._id || video.id || index}
+              key={video._id || video.id || `video-${index}`}
               onClick={() => handleVideoClick(video._id || video.id)}
               className={`transform transition-transform duration-200 ${
                 maintenanceMode

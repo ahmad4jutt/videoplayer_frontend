@@ -550,7 +550,7 @@ const Profilepage = () => {
                 className={`absolute inset-0 ${
                   isDarkMode
                     ? "bg-gradient-to-r from-gray-900/40 via-gray-800/40 to-gray-900/40"
-                    : "bg-gradient-to-r from-indigo-600/30 via-purple-600/30 to-pink-600/30"
+                    : "bg-gradient-to-r from-gray-900/30 via-gray-900/30 to-gray-900/30"
                 }`}
               ></div>
             </div>
@@ -607,7 +607,7 @@ const Profilepage = () => {
                 className={`w-36 h-36 rounded-full border-4 shadow-2xl overflow-hidden ${
                   isDarkMode
                     ? "border-gray-600 bg-gradient-to-br from-gray-700 to-gray-800"
-                    : "border-white bg-gradient-to-br from-indigo-100 to-purple-100"
+                    : "border-white bg-gradient-to-br from-gray-200 to-gray-100"
                 }`}
               >
                 {user?.avatar ? (

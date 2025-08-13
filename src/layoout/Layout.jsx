@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Navbar from "../Components/common/Navbar";
 import Asidebar from "../Components/common/Asidebar";
-
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 const Layout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -77,7 +78,7 @@ const Layout = ({ children }) => {
         isCollapsed={isCollapsed}
         isVideoDetailPage={isVideoDetailPage}
       />
-
+      <ToastContainer />
       {/* Main Content */}
       <main
         className={`pt-16 transition-all duration-300 ease-in-out ${

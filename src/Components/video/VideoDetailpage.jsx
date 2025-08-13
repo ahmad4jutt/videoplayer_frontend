@@ -12,6 +12,9 @@ import {
   toggleSubscription,
   isUserSubscribed,
   getTotalSubscribers,
+  addVideoToPlaylist,
+  createPlaylist,
+  getUserPlaylists,
 } from "../../services/api";
 import { useAuth } from "../../hooks/UseAuth";
 import { useTheme } from "../../context/ThemeContext";
@@ -40,7 +43,17 @@ import {
   PlayCircle,
   Settings,
   Bell,
+  Copy,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Link as LinkIcon,
+  Plus,
+  List,
+  Check,
+  Monitor,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 const VideoDetailpage = () => {
   const { videoId, channelId, userId } = useParams();
@@ -53,6 +66,7 @@ const VideoDetailpage = () => {
   // Add ref to track if video data has been fetched
   const hasInitialized = useRef(false);
   const viewCountedRef = useRef(false);
+  const videoRef = useRef(null);
 
   // Video states
   const [video, setVideo] = useState(null);
@@ -89,6 +103,22 @@ const VideoDetailpage = () => {
   const [subscriberLoading, setSubscriberLoading] = useState(false);
   // Unsubscribe modal states
   const [showUnsubscribeModal, setShowUnsubscribeModal] = useState(false);
+  // Share modal states
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  // Playlist states
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [userPlaylists, setUserPlaylists] = useState([]);
+  const [playlistsLoading, setPlaylistsLoading] = useState(false);
+  const [addingToPlaylist, setAddingToPlaylist] = useState(false);
+  const [showCreatePlaylistForm, setShowCreatePlaylistForm] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [newPlaylistDescription, setNewPlaylistDescription] = useState("");
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+
+  // More options menu state
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const fetchVideoLikeStatus = useCallback(async () => {
     if (!token || !videoId) return { liked: false, likeCount: 0 };
@@ -218,7 +248,6 @@ const VideoDetailpage = () => {
     return `${count} subscribers`;
   };
 
-  // FIXED: Fetch video data - only called once on mount
   const fetchVideoData = useCallback(async () => {
     if (!token || !videoId || hasInitialized.current) return;
 
@@ -528,11 +557,132 @@ const VideoDetailpage = () => {
       });
     } else {
       navigator.clipboard.writeText(window.location.href);
-      alert("Link copied to clipboard!");
+      toast.success("Link copied to clipboard!");
+    }
+  };
+  const fetchUserPlaylists = async () => {
+    if (!token || !currentUser) {
+      return;
+    }
+
+    // Make sure currentUser has an id property
+    if (!currentUser.id && !currentUser._id && !currentUser.userId) {
+      return;
+    }
+
+    try {
+      setPlaylistsLoading(true);
+
+      // Extract user ID from currentUser object
+      // Adjust the property name based on your user object structure
+      const userId = currentUser.id || currentUser._id || currentUser.userId;
+
+      const response = await getUserPlaylists(token, userId);
+
+      // Handle the actual response structure based on your API
+      let playlists = [];
+      // Your API returns data directly in response.data (which is an array)
+      if (response?.data && Array.isArray(response.data)) {
+        playlists = response.data;
+      }
+      // Fallback checks for other possible structures
+      else if (response?.data?.data && Array.isArray(response.data.data)) {
+        playlists = response.data.data;
+      } else if (response?.playlists && Array.isArray(response.playlists)) {
+        playlists = response.playlists;
+      }
+      // If response itself is an array (direct axios response)
+      else if (Array.isArray(response)) {
+        playlists = response;
+      }
+
+      // Process playlists to ensure they have the right structure
+      const processedPlaylists = playlists.map((playlist) => ({
+        ...playlist,
+        videoCount: playlist.videos ? playlist.videos.length : 0,
+      }));
+
+      setUserPlaylists(processedPlaylists);
+    } catch (err) {
+      // Show more detailed error information
+      const errorMessage =
+        err.response?.data?.message || err.message || "Unknown error";
+      setUserPlaylists([]);
+    } finally {
+      setPlaylistsLoading(false);
+    }
+  };
+  // Video resolution handler
+
+  const handleAddToPlaylist = async (playlistId) => {
+    if (!token || !videoId || !playlistId) return;
+
+    try {
+      setAddingToPlaylist(true);
+      await addVideoToPlaylist(token, videoId, playlistId);
+
+      // Show success message
+      const playlist = userPlaylists.find((p) => p._id === playlistId);
+      toast.success(`Video added to "${playlist?.name}" successfully!`);
+
+      setShowPlaylistModal(false);
+    } catch (err) {
+      const errorMessage =
+        err.response?.data?.message || "Failed to add video to playlist";
+      if (errorMessage.includes("already in the playlist")) {
+        toast.error("Video is already in this playlist!");
+      } else {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setAddingToPlaylist(false);
+    }
+  };
+  const handleCreatePlaylist = async (e) => {
+    e.preventDefault();
+
+    if (!token || !newPlaylistName.trim()) return;
+
+    try {
+      setCreatingPlaylist(true);
+
+      const response = await createPlaylist(token, {
+        name: newPlaylistName.trim(),
+        description: newPlaylistDescription.trim(),
+      });
+
+      const newPlaylist = response?.data?.data || response?.data;
+
+      // Add the video to the newly created playlist
+      if (newPlaylist?._id) {
+        await addVideoToPlaylist(token, videoId, newPlaylist._id);
+        toast.success(
+          `Playlist "${newPlaylistName}" created and video added successfully!`
+        );
+      }
+
+      // Reset form and close modal
+      setNewPlaylistName("");
+      setNewPlaylistDescription("");
+      setShowCreatePlaylistForm(false);
+      setShowPlaylistModal(false);
+    } catch (err) {
+      console.error("Error creating playlist:", err);
+      toast.error(err.response?.data?.message || "Failed to create playlist");
+    } finally {
+      setCreatingPlaylist(false);
     }
   };
 
-  // Handle related video click
+  const openPlaylistModal = async () => {
+    setShowPlaylistModal(true);
+
+    // Only fetch if we don't have playlists or if there was a previous error
+    if (userPlaylists.length === 0 && !playlistsLoading) {
+      await fetchUserPlaylists();
+    }
+  };
+
   const handleRelatedVideoClick = (relatedVideoId) => {
     // Reset state for new video
     hasInitialized.current = false;
@@ -584,7 +734,28 @@ const VideoDetailpage = () => {
       return "unknown";
     }
   };
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Close menus when clicking outside
+      const isInsideMenu =
+        event.target.closest(".resolution-menu") ||
+        event.target.closest(".more-menu") ||
+        event.target.closest(".playlist-modal") ||
+        event.target.closest("[data-menu]");
 
+      if (!isInsideMenu) {
+        setShowMoreMenu(false);
+        setShowResolutionMenu(false);
+      }
+    };
+
+    if (showMoreMenu || showShareModal || showPlaylistModal) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [showMoreMenu, , showShareModal, showPlaylistModal]);
   // Initial data loading
   useEffect(() => {
     if (token && videoId && !hasInitialized.current) {
@@ -766,29 +937,36 @@ const VideoDetailpage = () => {
 
   // Unsubscribe Confirmation Modal
   const UnsubscribeModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div
         className={`${
           isDarkMode ? "bg-gray-800" : "bg-white"
-        } rounded-lg p-6 max-w-md mx-4 shadow-xl`}
+        } rounded-lg p-4 sm:p-6 max-w-sm sm:max-w-md mx-4 shadow-xl w-full`}
       >
-        <div className="flex items-center gap-3 mb-4">
-          <AlertTriangle className="text-yellow-500" size={24} />
+        <div className="flex items-start gap-3 mb-4">
+          <AlertTriangle
+            className="text-yellow-500 flex-shrink-0 mt-0.5"
+            size={20}
+          />
           <h3
-            className={`text-lg font-semibold ${
+            className={`text-base sm:text-lg font-semibold ${
               isDarkMode ? "text-white" : "text-gray-900"
             }`}
           >
             Unsubscribe from {video?.owner?.fullName}?
           </h3>
         </div>
-        <p className={`${isDarkMode ? "text-gray-300" : "text-gray-600"} mb-6`}>
+        <p
+          className={`${
+            isDarkMode ? "text-gray-300" : "text-gray-600"
+          } mb-6 text-sm sm:text-base`}
+        >
           You won't receive notifications for new videos from this channel.
         </p>
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col sm:flex-row justify-end gap-3">
           <button
             onClick={() => setShowUnsubscribeModal(false)}
-            className={`px-4 py-2 rounded-lg ${
+            className={`px-4 py-2 rounded-lg text-sm sm:text-base ${
               isDarkMode
                 ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -799,7 +977,7 @@ const VideoDetailpage = () => {
           <button
             onClick={performSubscriptionToggle}
             disabled={isSubscribing}
-            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors disabled:opacity-50 text-sm sm:text-base"
           >
             {isSubscribing ? (
               <>
@@ -814,6 +992,287 @@ const VideoDetailpage = () => {
       </div>
     </div>
   );
+  const PlaylistModal = () => {
+    const [error, setError] = useState(null);
+
+    const handleFetchPlaylists = async () => {
+      try {
+        setError(null);
+        await fetchUserPlaylists();
+      } catch (err) {
+        setError("Failed to load playlists. Please try again.");
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+        <div
+          className={`${
+            isDarkMode
+              ? "bg-gray-900 border-gray-800"
+              : "bg-white border-gray-200"
+          }rounded-xl border shadow-2xl w-full max-w-sm sm:max-w-md max-h-[90vh] sm:max-h-[85vh] overflow-hidden`}
+        >
+          {/* Header */}
+          <div
+            className={`px-6 py-4 border-b ${
+              isDarkMode ? "border-gray-800" : "border-gray-200"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <h2
+                className={`text-lg font-semibold ${
+                  isDarkMode ? "text-white" : "text-gray-900"
+                }`}
+              >
+                Add to Playlist
+              </h2>
+              <button
+                onClick={() => {
+                  setShowPlaylistModal(false);
+                  setShowCreatePlaylistForm(false);
+                  setNewPlaylistName("");
+                  setNewPlaylistDescription("");
+                  setError(null);
+                }}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDarkMode
+                    ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="px-6 py-4 flex-1 overflow-hidden">
+            {/* Error Display */}
+            {error && (
+              <div
+                className={`mb-4 p-4 rounded-lg border ${
+                  isDarkMode
+                    ? "bg-red-900/20 border-red-800 text-red-300"
+                    : "bg-red-50 border-red-200 text-red-800"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <AlertTriangle
+                    className="text-red-500 mt-0.5 flex-shrink-0"
+                    size={16}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium mb-2">{error}</p>
+                    <button
+                      onClick={handleFetchPlaylists}
+                      className="text-sm font-medium underline hover:no-underline transition-all"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Create New Playlist Form */}
+            {showCreatePlaylistForm ? (
+              <form onSubmit={handleCreatePlaylist} className="space-y-4">
+                <div>
+                  <label
+                    className={`block text-sm font-medium mb-2 ${
+                      isDarkMode ? "text-gray-300" : "text-gray-700"
+                    }`}
+                  >
+                    Playlist Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newPlaylistName}
+                    onChange={(e) => setNewPlaylistName(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-lg border transition-colors ${
+                      isDarkMode
+                        ? "border-gray-700 bg-gray-800 text-white placeholder-gray-400 focus:border-blue-500"
+                        : "border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500"
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                    placeholder="Enter playlist name"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label
+                    className={`block text-sm font-medium mb-2 ${
+                      isDarkMode ? "text-gray-300" : "text-gray-700"
+                    }`}
+                  >
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    value={newPlaylistDescription}
+                    onChange={(e) => setNewPlaylistDescription(e.target.value)}
+                    className={`w-full px-3 py-2.5 rounded-lg border transition-colors resize-none ${
+                      isDarkMode
+                        ? "border-gray-700 bg-gray-800 text-white placeholder-gray-400 focus:border-blue-500"
+                        : "border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500"
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                    rows="3"
+                    placeholder="Add a description for your playlist"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={!newPlaylistName.trim() || creatingPlaylist}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2.5 rounded-lg font-medium transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {creatingPlaylist ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={16} />
+                        Create & Add
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreatePlaylistForm(false)}
+                    className={`px-4 py-2.5 rounded-lg font-medium transition-colors ${
+                      isDarkMode
+                        ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                {/* Create New Playlist Button */}
+                <button
+                  onClick={() => setShowCreatePlaylistForm(true)}
+                  className={`w-full flex items-center justify-center gap-3 p-4 rounded-lg border-2 border-dashed transition-colors ${
+                    isDarkMode
+                      ? "border-blue-600 text-blue-400 hover:bg-blue-600/5"
+                      : "border-blue-300 text-blue-600 hover:bg-blue-50"
+                  }`}
+                >
+                  <Plus size={20} />
+                  <span className="font-medium">Create New Playlist</span>
+                </button>
+
+                {/* Existing Playlists */}
+                <div>
+                  <h3
+                    className={`text-sm font-medium mb-3 ${
+                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
+                    Your Playlists
+                  </h3>
+
+                  <div className="max-h-64 overflow-y-auto space-y-1">
+                    {playlistsLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="flex items-center gap-3">
+                          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                          <span
+                            className={`text-sm ${
+                              isDarkMode ? "text-gray-400" : "text-gray-600"
+                            }`}
+                          >
+                            Loading playlists...
+                          </span>
+                        </div>
+                      </div>
+                    ) : userPlaylists.length === 0 ? (
+                      <div
+                        className={`text-center py-12 ${
+                          isDarkMode ? "text-gray-500" : "text-gray-400"
+                        }`}
+                      >
+                        <List size={32} className="mx-auto mb-3 opacity-50" />
+                        <p className="text-sm font-medium mb-1">
+                          No playlists yet
+                        </p>
+                        <p className="text-xs">
+                          Create your first playlist to get started
+                        </p>
+                        {error && (
+                          <button
+                            onClick={handleFetchPlaylists}
+                            className="mt-3 text-blue-500 hover:text-blue-600 text-sm font-medium underline hover:no-underline"
+                          >
+                            Retry Loading
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      userPlaylists.map((playlist) => (
+                        <button
+                          key={playlist._id}
+                          onClick={() => handleAddToPlaylist(playlist._id)}
+                          disabled={addingToPlaylist}
+                          className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left group ${
+                            isDarkMode
+                              ? "hover:bg-gray-800 disabled:hover:bg-transparent"
+                              : "hover:bg-gray-50 disabled:hover:bg-transparent"
+                          } disabled:opacity-60 disabled:cursor-not-allowed`}
+                        >
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                            <List size={18} className="text-white" />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div
+                              className={`font-medium text-sm mb-1 ${
+                                isDarkMode ? "text-white" : "text-gray-900"
+                              }`}
+                            >
+                              {playlist.name}
+                            </div>
+                            {playlist.description && (
+                              <div
+                                className={`text-xs mb-1 line-clamp-1 ${
+                                  isDarkMode ? "text-gray-400" : "text-gray-600"
+                                }`}
+                              >
+                                {playlist.description}
+                              </div>
+                            )}
+                            <div
+                              className={`text-xs ${
+                                isDarkMode ? "text-gray-500" : "text-gray-500"
+                              }`}
+                            >
+                              {playlist.videoCount ||
+                                playlist.videos?.length ||
+                                0}{" "}
+                              videos
+                            </div>
+                          </div>
+
+                          {addingToPlaylist && (
+                            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -821,9 +1280,10 @@ const VideoDetailpage = () => {
     >
       {/* Unsubscribe Modal */}
       {showUnsubscribeModal && <UnsubscribeModal />}
+      {showPlaylistModal && <PlaylistModal />}
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
           {/* Main Video Section */}
           <div className="lg:col-span-2">
             {/* Video Player */}
@@ -855,9 +1315,9 @@ const VideoDetailpage = () => {
               </h1>
 
               {/* Video Stats */}
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                 <div
-                  className={`flex items-center gap-6 text-sm ${
+                  className={`flex flex-wrap items-center gap-4 text-sm ${
                     isDarkMode ? "text-gray-400" : "text-gray-600"
                   }`}
                 >
@@ -871,16 +1331,16 @@ const VideoDetailpage = () => {
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock size={16} />
-                    <span>{formatDuration(video.duration)}</span>
+                    <span>{formatDuration(video.duration)} </span>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={handleLike}
                     disabled={likesLoading}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
+                    className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-full text-sm transition-colors ${
                       liked
                         ? "bg-blue-500 text-white"
                         : `${
@@ -890,14 +1350,16 @@ const VideoDetailpage = () => {
                           }`
                     } ${likesLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
-                    <ThumbsUp size={16} />
-                    <span> {likeCount > 0 && `${likeCount}`}</span>
+                    <ThumbsUp size={14} sm:size={16} />
+                    <span className="hidden sm:inline">
+                      {likeCount > 0 && `${likeCount}`}
+                    </span>
                   </button>
 
                   <button
                     onClick={handleDislike}
                     disabled={likesLoading}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
+                    className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-full text-sm transition-colors ${
                       disliked
                         ? "bg-red-500 text-white"
                         : `${
@@ -907,31 +1369,35 @@ const VideoDetailpage = () => {
                           }`
                     } ${likesLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
-                    <ThumbsDown size={16} />
+                    <ThumbsDown size={14} />
                     {dislikeCount > 0 && <span>({dislikeCount})</span>}
                   </button>
 
                   <button
                     onClick={handleShare}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+                    className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-full text-sm ${
                       isDarkMode
                         ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     } transition-colors`}
                   >
-                    <Share2 size={16} />
-                    <span>Share</span>
+                    <Share2 size={14} />
+                    <span className="hidden sm:inline">Share</span>
                   </button>
-
-                  <button
-                    className={`p-2 rounded-full ${
-                      isDarkMode
-                        ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    } transition-colors`}
-                  >
-                    <MoreHorizontal size={16} />
-                  </button>
+                  {/* Save to Playlist Button */}
+                  {currentUser && (
+                    <button
+                      onClick={openPlaylistModal}
+                      className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-full text-sm ${
+                        isDarkMode
+                          ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      } transition-colors`}
+                    >
+                      <List size={14} />
+                      <span className="hidden sm:inline">Save</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -950,26 +1416,26 @@ const VideoDetailpage = () => {
 
               {/* Creator Info */}
               <div
-                className={`flex items-center justify-between border-t ${
+                className={`flex flex-col sm:flex-row sm:items-center justify-between border-t ${
                   isDarkMode ? "border-gray-700" : "border-gray-200"
-                } pt-6`}
+                } pt-6 gap-4`}
               >
-                <Link to={`/channel/${video.owner?._id}`}>
-                  <div className="flex items-center gap-4">
+                <Link to={`/channel/${video.owner?._id}`} className="flex-1">
+                  <div className="flex items-center gap-3 sm:gap-4">
                     {video.owner?.avatar ? (
                       <img
                         src={video.owner.avatar}
                         alt={video.owner?.fullName}
-                        className="w-12 h-12 rounded-full object-cover"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
                         {video.owner?.fullName?.charAt(0)?.toUpperCase() || "U"}
                       </div>
                     )}
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <h3
-                        className={`font-semibold ${
+                        className={`font-semibold text-sm sm:text-base truncate ${
                           isDarkMode ? "text-white" : "text-gray-900"
                         }`}
                       >
@@ -977,7 +1443,7 @@ const VideoDetailpage = () => {
                       </h3>
                       {subscriberLoading ? (
                         <span
-                          className={`text-sm ${
+                          className={`text-xs sm:text-sm ${
                             isDarkMode ? "text-gray-400" : "text-gray-600"
                           } flex items-center gap-1`}
                         >
@@ -986,7 +1452,7 @@ const VideoDetailpage = () => {
                         </span>
                       ) : (
                         <p
-                          className={`text-sm ${
+                          className={`text-xs sm:text-sm ${
                             isDarkMode ? "text-gray-400" : "text-gray-600"
                           }`}
                         >
@@ -998,74 +1464,90 @@ const VideoDetailpage = () => {
                 </Link>
 
                 {/* Updated Subscribe Button Section */}
-                {subscriptionLoading ? (
-                  <div className="px-6 py-2 rounded-full bg-gray-100 flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-blue-600 mr-2"></div>
-                    <span className="text-gray-600">Loading...</span>
-                  </div>
-                ) : subscriptionData?.isOwnChannel ? (
-                  <button
-                    className={`px-6 py-2 rounded-full font-medium transition-colors shadow-lg hover:shadow-xl flex items-center ${
-                      isDarkMode
-                        ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                    }`}
-                  >
-                    <Settings size={18} className="mr-2" />
-                    <Link to="/channel">Manage Channel</Link>
-                  </button>
-                ) : subscriptionData ? (
-                  <button
-                    onClick={handleSubscription}
-                    disabled={isSubscribing}
-                    className={`px-6 py-2 rounded-full font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center transform hover:scale-105 ${
-                      subscriptionData.isSubscribed
-                        ? `${
-                            isDarkMode
-                              ? "bg-gray-600 hover:bg-gray-700 text-white border border-gray-500"
-                              : "bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300"
-                          }`
-                        : "bg-red-500 hover:bg-red-600 text-white border border-red-600"
-                    } ${
-                      isSubscribing
-                        ? "opacity-50 cursor-not-allowed scale-100"
-                        : ""
-                    }`}
-                  >
-                    {isSubscribing ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                        {subscriptionData.isSubscribed
-                          ? "Unsubscribing..."
-                          : "Subscribing..."}
-                      </>
-                    ) : subscriptionData.isSubscribed ? (
-                      <>
-                        <Bell size={18} className="mr-2 fill-current" />
-                        Subscribed
-                      </>
-                    ) : (
-                      <>
-                        <Bell size={18} className="mr-2" />
-                        Subscribe
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <button
-                    disabled
-                    className={`px-6 py-2 rounded-full font-medium flex items-center ${
-                      isDarkMode
-                        ? "bg-gray-700 text-gray-500"
-                        : "bg-gray-100 text-gray-400"
-                    } cursor-not-allowed`}
-                  >
-                    <Bell size={18} className="mr-2" />
-                    Subscribe
-                  </button>
-                )}
+                {/* Subscribe button - responsive sizing */}
+                <div className="flex-shrink-0">
+                  {subscriptionLoading ? (
+                    <div className="px-4 sm:px-6 py-2 rounded-full bg-gray-100 flex items-center text-sm">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-blue-600 mr-2"></div>
+                      <span className="text-gray-600">Loading...</span>
+                    </div>
+                  ) : subscriptionData?.isOwnChannel ? (
+                    <Link to="/channel">
+                      <button
+                        className={`px-4 sm:px-6 py-2 rounded-full font-medium text-sm transition-colors shadow-lg hover:shadow-xl flex items-center ${
+                          isDarkMode
+                            ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        }`}
+                      >
+                        <Settings
+                          size={16}
+                          sm:size={18}
+                          className="mr-1 sm:mr-2"
+                        />
+                        <span className="hidden sm:inline">Manage Channel</span>
+                        <span className="sm:hidden">Manage</span>
+                      </button>
+                    </Link>
+                  ) : subscriptionData ? (
+                    <button
+                      onClick={handleSubscription}
+                      disabled={isSubscribing}
+                      className={`px-4 sm:px-6 py-2 rounded-full font-medium text-sm transition-all duration-300 shadow-lg hover:shadow-xl flex items-center transform hover:scale-105 ${
+                        subscriptionData.isSubscribed
+                          ? `${
+                              isDarkMode
+                                ? "bg-gray-600 hover:bg-gray-700 text-white border border-gray-500"
+                                : "bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300"
+                            }`
+                          : "bg-red-500 hover:bg-red-600 text-white border border-red-600"
+                      } ${
+                        isSubscribing
+                          ? "opacity-50 cursor-not-allowed scale-100"
+                          : ""
+                      }`}
+                    >
+                      {isSubscribing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-1 sm:mr-2"></div>
+                          <span className="hidden sm:inline">
+                            {subscriptionData.isSubscribed
+                              ? "Unsubscribing..."
+                              : "Subscribing..."}
+                          </span>
+                          <span className="sm:hidden">...</span>
+                        </>
+                      ) : subscriptionData.isSubscribed ? (
+                        <>
+                          <Bell
+                            size={16}
+                            className="mr-1 sm:mr-2 fill-current"
+                          />
+                          <span className="hidden sm:inline">Subscribed</span>
+                          <span className="sm:hidden">Sub'd</span>
+                        </>
+                      ) : (
+                        <>
+                          <Bell size={16} className="mr-1 sm:mr-2" />
+                          Subscribe
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className={`px-4 sm:px-6 py-2 rounded-full font-medium text-sm flex items-center ${
+                        isDarkMode
+                          ? "bg-gray-700 text-gray-500"
+                          : "bg-gray-100 text-gray-400"
+                      } cursor-not-allowed`}
+                    >
+                      <Bell size={16} className="mr-1 sm:mr-2" />
+                      Subscribe
+                    </button>
+                  )}
+                </div>
               </div>
-
               {/* Description */}
               <div className="mt-6">
                 <button
@@ -1114,25 +1596,22 @@ const VideoDetailpage = () => {
               {/* Add Comment Form */}
               {currentUser && (
                 <form onSubmit={handleAddComment} className="mb-6">
-                  <div className="flex gap-3 items-start">
-                    {/* User Avatar */}
-                    <div className="relative w-10 h-10 flex-shrink-0">
+                  <div className="flex gap-2 sm:gap-3 items-start">
+                    {/* User Avatar - smaller on mobile */}
+                    <div className="relative w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
                       {currentUser.avatar ? (
                         <img
                           src={currentUser.avatar}
                           alt={currentUser.fullName || "User"}
-                          className="w-10 h-10 rounded-full object-cover"
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
                           onError={(e) => {
-                            console.log(
-                              "Avatar failed to load, showing fallback"
-                            );
                             e.target.style.display = "none";
                             e.target.nextElementSibling.style.display = "flex";
                           }}
                         />
                       ) : null}
                       <div
-                        className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm absolute top-0 left-0"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs sm:text-sm absolute top-0 left-0"
                         style={{
                           display: currentUser.avatar ? "none" : "flex",
                         }}
@@ -1148,7 +1627,7 @@ const VideoDetailpage = () => {
                           value={newComment}
                           onChange={(e) => setNewComment(e.target.value)}
                           placeholder="Add a comment..."
-                          className={`w-full p-4 pr-20 border-0 border-b-2 ${
+                          className={`w-full p-3 sm:p-4 pr-16 sm:pr-20 border-0 border-b-2 text-sm sm:text-base ${
                             isDarkMode
                               ? "border-gray-600 bg-transparent text-white placeholder-gray-400 focus:border-blue-400"
                               : "border-gray-300 bg-transparent text-gray-900 placeholder-gray-500 focus:border-blue-500"
@@ -1156,38 +1635,37 @@ const VideoDetailpage = () => {
                           rows="1"
                           disabled={addingComment}
                           style={{
-                            minHeight: "48px",
+                            minHeight: "40px",
                             lineHeight: "1.5",
                           }}
                           onInput={(e) => {
-                            // Auto-resize textarea
-                            e.target.style.height = "48px";
+                            e.target.style.height = "40px";
                             e.target.style.height =
                               Math.min(e.target.scrollHeight, 120) + "px";
                           }}
                         />
 
                         {/* Send Button Inside Textarea */}
-                        <div className="absolute right-2 bottom-2 flex gap-2">
+                        <div className="absolute right-1 sm:right-2 bottom-1 sm:bottom-2 flex gap-1 sm:gap-2">
                           {newComment.trim() && (
                             <button
                               type="button"
                               onClick={() => setNewComment("")}
-                              className={`p-2 rounded-full ${
+                              className={`p-1.5 sm:p-2 rounded-full ${
                                 isDarkMode
                                   ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700"
                                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                               } transition-all duration-200`}
                               disabled={addingComment}
                             >
-                              <X size={16} />
+                              <X size={14} />
                             </button>
                           )}
 
                           <button
                             type="submit"
                             disabled={!newComment.trim() || addingComment}
-                            className={`p-2 rounded-full transition-all duration-200 ${
+                            className={`p-1.5 sm:p-2 rounded-full transition-all duration-200 ${
                               !newComment.trim() || addingComment
                                 ? isDarkMode
                                   ? "text-gray-600 cursor-not-allowed"
@@ -1196,24 +1674,13 @@ const VideoDetailpage = () => {
                             }`}
                           >
                             {addingComment ? (
-                              <LoadingSpinner size={16} />
+                              <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             ) : (
-                              <Send size={16} />
+                              <Send size={14} />
                             )}
                           </button>
                         </div>
                       </div>
-
-                      {/* Optional: Character count or typing indicator */}
-                      {newComment.trim() && (
-                        <div
-                          className={`text-xs mt-1 ${
-                            isDarkMode ? "text-gray-400" : "text-gray-500"
-                          }`}
-                        >
-                          {newComment.length} characters
-                        </div>
-                      )}
                     </div>
                   </div>
                 </form>
@@ -1404,19 +1871,19 @@ const VideoDetailpage = () => {
             <div
               className={`${
                 isDarkMode ? "bg-gray-800" : "bg-white"
-              } rounded-lg shadow-lg p-6`}
+              } rounded-lg shadow-lg p-4 sm:p-6`}
             >
               <h3
-                className={`text-lg font-semibold ${
+                className={`text-base sm:text-lg font-semibold ${
                   isDarkMode ? "text-white" : "text-gray-900"
-                } mb-6 flex items-center gap-2`}
+                } mb-4 sm:mb-6 flex items-center gap-2`}
               >
-                <PlayCircle size={20} />
+                <PlayCircle size={18} sm:size={20} />
                 Related Videos
               </h3>
 
               {/* Related Videos List */}
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {relatedVideos.length === 0 ? (
                   <div
                     className={`text-center py-2 ${
@@ -1431,7 +1898,7 @@ const VideoDetailpage = () => {
                     <div
                       key={relatedVideo._id}
                       onClick={() => handleRelatedVideoClick(relatedVideo._id)}
-                      className={`flex gap-2 p-3 rounded-lg cursor-pointer transition-colors ${
+                      className={`flex gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg cursor-pointer transition-colors ${
                         isDarkMode
                           ? "hover:bg-gray-700 bg-gray-750"
                           : "hover:bg-gray-50 bg-gray-25"
@@ -1445,7 +1912,7 @@ const VideoDetailpage = () => {
                             "/api/placeholder/160/90"
                           }
                           alt={relatedVideo.title}
-                          className="w-40 h-24 object-cover rounded-lg"
+                          className="w-32 h-20 sm:w-40 sm:h-24 object-cover rounded-lg"
                           onError={(e) => {
                             e.target.src = "/api/placeholder/160/90";
                           }}
@@ -1467,31 +1934,30 @@ const VideoDetailpage = () => {
                       {/* Video Info */}
                       <div className="flex-1 min-w-0">
                         <h4
-                          className={`font-medium ${
+                          className={`font-medium text-sm sm:text-base ${
                             isDarkMode ? "text-white" : "text-gray-900"
                           } line-clamp-2 mb-1`}
-                          title={relatedVideo.title}
                         >
                           {relatedVideo.title}
                         </h4>
 
                         {/* Channel Info */}
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
                           {relatedVideo.owner?.avatar ? (
                             <img
                               src={relatedVideo.owner.avatar}
                               alt={relatedVideo.owner.fullName}
-                              className="w-6 h-6 rounded-full object-cover"
+                              className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
+                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
                               {relatedVideo.owner?.fullName
                                 ?.charAt(0)
                                 ?.toUpperCase() || "U"}
                             </div>
                           )}
                           <span
-                            className={`text-sm ${
+                            className={`text-xs sm:text-sm ${
                               isDarkMode ? "text-gray-400" : "text-gray-600"
                             } truncate`}
                           >
@@ -1501,7 +1967,7 @@ const VideoDetailpage = () => {
 
                         {/* Video Stats */}
                         <div
-                          className={`flex items-center gap-2 text-xs ${
+                          className={`flex items-center gap-1 sm:gap-2 text-xs ${
                             isDarkMode ? "text-gray-500" : "text-gray-500"
                           }`}
                         >

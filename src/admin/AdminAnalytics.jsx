@@ -330,31 +330,160 @@ const AdminAnalytics = () => {
     );
   };
 
-  const PerformanceMetrics = () => {
+  const PerformanceMetrics = ({ analyticsData, dashboardData }) => {
+    // Calculate user retention rate based on active vs total users
+    const calculateUserRetention = () => {
+      if (!dashboardData?.overview) return { value: "0%", change: 0 };
+
+      const totalUsers = dashboardData.overview.totalUsers || 0;
+      const activeUsers = dashboardData.overview.activeUsers || 0;
+
+      if (totalUsers === 0) return { value: "0%", change: 0 };
+
+      const retentionRate = ((activeUsers / totalUsers) * 100).toFixed(1);
+
+      // Calculate change based on previous period data if available
+      const previousRetention =
+        dashboardData.overview.previousRetention || retentionRate;
+      const change = (
+        ((retentionRate - previousRetention) / previousRetention) *
+        100
+      ).toFixed(1);
+
+      return {
+        value: `${retentionRate}%`,
+        change: parseFloat(change),
+      };
+    };
+
+    // Calculate average session duration from analytics data
+    const calculateAvgSessionDuration = () => {
+      if (
+        !analyticsData?.userAnalytics ||
+        analyticsData.userAnalytics.length === 0
+      ) {
+        return { value: "0m 0s", change: 0 };
+      }
+
+      // Sum up session durations and divide by number of sessions
+      const totalDuration = analyticsData.userAnalytics.reduce((sum, item) => {
+        return sum + (item.avgSessionDuration || 0);
+      }, 0);
+
+      const avgDurationMinutes =
+        totalDuration / analyticsData.userAnalytics.length;
+      const minutes = Math.floor(avgDurationMinutes);
+      const seconds = Math.floor((avgDurationMinutes - minutes) * 60);
+
+      // Calculate change (you might want to compare with previous period data)
+      const previousAvgDuration =
+        analyticsData.previousAvgSessionDuration || avgDurationMinutes;
+      const change =
+        previousAvgDuration > 0
+          ? (
+              ((avgDurationMinutes - previousAvgDuration) /
+                previousAvgDuration) *
+              100
+            ).toFixed(1)
+          : 0;
+
+      return {
+        value: `${minutes}m ${seconds}s`,
+        change: parseFloat(change),
+      };
+    };
+
+    // Calculate content upload rate from video analytics
+    const calculateContentUploadRate = () => {
+      if (
+        !analyticsData?.videoAnalytics ||
+        analyticsData.videoAnalytics.length === 0
+      ) {
+        return { value: "0/day", change: 0 };
+      }
+
+      // Calculate average videos uploaded per day
+      const totalVideos = analyticsData.videoAnalytics.reduce((sum, item) => {
+        return sum + (item.newVideos || 0);
+      }, 0);
+
+      const totalDays = analyticsData.videoAnalytics.length;
+      const videosPerDay =
+        totalDays > 0 ? Math.round(totalVideos / totalDays) : 0;
+
+      // Calculate change compared to previous period
+      const previousUploadRate =
+        analyticsData.previousUploadRate || videosPerDay;
+      const change =
+        previousUploadRate > 0
+          ? (
+              ((videosPerDay - previousUploadRate) / previousUploadRate) *
+              100
+            ).toFixed(1)
+          : 0;
+
+      return {
+        value: `${videosPerDay}/day`,
+        change: parseFloat(change),
+      };
+    };
+
+    // Calculate engagement rate from likes, comments, and views
+    const calculateEngagementRate = () => {
+      if (!dashboardData?.overview) return { value: "0%", change: 0 };
+
+      const totalLikes = dashboardData.overview.totalLikes || 0;
+      const totalComments = dashboardData.overview.totalComments || 0;
+      const totalViews = dashboardData.overview.totalViews || 0;
+
+      if (totalViews === 0) return { value: "0%", change: 0 };
+
+      const engagementRate = (
+        ((totalLikes + totalComments) / totalViews) *
+        100
+      ).toFixed(1);
+
+      // Calculate change
+      const previousEngagement =
+        dashboardData.overview.previousEngagement || engagementRate;
+      const change =
+        previousEngagement > 0
+          ? (
+              ((engagementRate - previousEngagement) / previousEngagement) *
+              100
+            ).toFixed(1)
+          : 0;
+
+      return {
+        value: `${engagementRate}%`,
+        change: parseFloat(change),
+      };
+    };
+
     const metricsData = [
       {
         name: "User Retention",
-        value: "78%",
-        change: 5.2,
+        ...calculateUserRetention(),
         color: "green",
+        icon: Users,
       },
       {
         name: "Avg. Session Duration",
-        value: "12m 34s",
-        change: -2.1,
+        ...calculateAvgSessionDuration(),
         color: "orange",
+        icon: Activity,
       },
       {
         name: "Content Upload Rate",
-        value: "24/day",
-        change: 12.5,
+        ...calculateContentUploadRate(),
         color: "blue",
+        icon: Video,
       },
       {
         name: "Engagement Rate",
-        value: "65%",
-        change: 8.3,
+        ...calculateEngagementRate(),
         color: "purple",
+        icon: Heart,
       },
     ];
 
@@ -366,7 +495,7 @@ const AdminAnalytics = () => {
             title={metric.name}
             value={metric.value}
             change={metric.change}
-            icon={Activity}
+            icon={metric.icon}
             color={metric.color}
           />
         ))}
@@ -417,7 +546,7 @@ const AdminAnalytics = () => {
                     isDarkMode ? "text-gray-300" : "text-gray-600"
                   }`}
                 >
-                  Subscribers
+                  CreatedAt
                 </th>
                 <th
                   className={`text-left py-3 px-4 font-medium ${
@@ -473,7 +602,7 @@ const AdminAnalytics = () => {
                       isDarkMode ? "text-gray-300" : "text-gray-600"
                     }`}
                   >
-                    {user.subscribersCount || 0}
+                    {user.createdAt || 0}
                   </td>
                   <td className="py-4 px-4">
                     <span
@@ -487,7 +616,7 @@ const AdminAnalytics = () => {
                           : "bg-red-100 text-red-800"
                       }`}
                     >
-                      {user.isActive ? "Active" : "Inactive"}
+                      {user.isActive === true ? "Active" : "Inactive"}
                     </span>
                   </td>
                 </tr>
@@ -612,7 +741,6 @@ const AdminAnalytics = () => {
         </div>
 
         {/* Performance Metrics */}
-        <PerformanceMetrics />
 
         {/* Main Analytics Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">

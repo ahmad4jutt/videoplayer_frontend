@@ -27,6 +27,7 @@ import {
   toggleAdminStatus,
   adminRegister,
 } from "../services/api";
+import { toast } from "react-toastify";
 
 const ManageAdmins = () => {
   const { adminToken } = useAuth();
@@ -132,7 +133,7 @@ const ManageAdmins = () => {
       });
 
       await fetchAdmins();
-      alert("Admin registered successfully!");
+      toast("Admin registered successfully!");
     } catch (error) {
       console.error("Error registering admin:", error);
       setError(error.response?.data?.message || "Failed to register admin");
@@ -166,7 +167,7 @@ const ManageAdmins = () => {
       setStatusForm({ reason: "", isDeactivating: false });
 
       await fetchAdmins();
-      alert(
+      toast.success(
         `Admin ${
           statusForm.isDeactivating ? "deactivated" : "reactivated"
         } successfully!`
@@ -198,7 +199,7 @@ const ManageAdmins = () => {
       setDeleteForm({ reason: "", confirmDelete: false });
 
       await fetchAdmins();
-      alert("User deleted successfully!");
+      toast("User deleted successfully!");
     } catch (error) {
       console.error("Error deleting user:", error);
       setError(error.response?.data?.message || "Failed to delete user");

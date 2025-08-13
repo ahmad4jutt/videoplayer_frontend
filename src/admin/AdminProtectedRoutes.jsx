@@ -3,6 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ShieldIcon, AlertTriangle } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+
 const AdminProtectedRoute = ({ children, fallbackPath = "/admin/login" }) => {
   const { isDarkMode } = useTheme();
   const { adminToken, currentAdmin, adminLoading, isAdminAuthenticated } =
@@ -12,12 +13,34 @@ const AdminProtectedRoute = ({ children, fallbackPath = "/admin/login" }) => {
   // Show loading spinner while checking authentication
   if (adminLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="text-center bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-2xl">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-400 mx-auto"></div>
+      <div
+        className={`flex items-center justify-center min-h-screen ${
+          isDarkMode
+            ? "bg-gradient-to-br from-slate-900 via-gray-900 to-slate-900"
+            : "bg-gradient-to-br from-gray-50 via-white to-gray-50"
+        }`}
+      >
+        <div
+          className={`text-center backdrop-blur-lg rounded-2xl p-8 border shadow-2xl ${
+            isDarkMode
+              ? "bg-white/10 border-white/20"
+              : "bg-gray-900/10 border-gray-300/20"
+          }`}
+        >
+          <div
+            className={`animate-spin rounded-full h-16 w-16 border-b-2 mx-auto ${
+              isDarkMode ? "border-gray-400" : "border-gray-600"
+            }`}
+          ></div>
           <div className="mt-4 flex items-center justify-center">
-            <ShieldIcon className="h-5 w-5 text-purple-400 mr-2" />
-            <p className="text-white">Verifying admin access...</p>
+            <ShieldIcon
+              className={`h-5 w-5 mr-2 ${
+                isDarkMode ? "text-gray-400" : "text-gray-600"
+              }`}
+            />
+            <p className={isDarkMode ? "text-white" : "text-gray-700"}>
+              Verifying admin access...
+            </p>
           </div>
         </div>
       </div>
@@ -43,6 +66,7 @@ export const SuperAdminProtectedRoute = ({
   fallbackPath = "/admin/dashboard",
   unauthorizedPath = "/admin/unauthorized",
 }) => {
+  const { isDarkMode } = useTheme();
   const {
     adminToken,
     currentAdmin,
@@ -55,12 +79,34 @@ export const SuperAdminProtectedRoute = ({
   // Show loading spinner while checking authentication
   if (adminLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="text-center bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-2xl">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-400 mx-auto"></div>
+      <div
+        className={`flex items-center justify-center min-h-screen ${
+          isDarkMode
+            ? "bg-gradient-to-br from-slate-900 via-gray-800 to-slate-900"
+            : "bg-gradient-to-br from-gray-50 via-white to-gray-50"
+        }`}
+      >
+        <div
+          className={`text-center backdrop-blur-lg rounded-2xl p-8 border shadow-2xl ${
+            isDarkMode
+              ? "bg-white/10 border-white/20"
+              : "bg-gray-900/10 border-gray-300/20"
+          }`}
+        >
+          <div
+            className={`animate-spin rounded-full h-16 w-16 border-b-2 mx-auto ${
+              isDarkMode ? "border-gray-400" : "border-gray-600"
+            }`}
+          ></div>
           <div className="mt-4 flex items-center justify-center">
-            <ShieldIcon className="h-5 w-5 text-purple-400 mr-2" />
-            <p className="text-white">Verifying super admin access...</p>
+            <ShieldIcon
+              className={`h-5 w-5 mr-2 ${
+                isDarkMode ? "text-gray-400" : "text-gray-600"
+              }`}
+            />
+            <p className={isDarkMode ? "text-white" : "text-gray-700"}>
+              Verifying super admin access...
+            </p>
           </div>
         </div>
       </div>
@@ -90,6 +136,7 @@ export const AnyAdminProtectedRoute = ({
   fallbackPath = "/admin/login",
   unauthorizedPath = "/admin/unauthorized",
 }) => {
+  const { isDarkMode } = useTheme();
   const {
     adminToken,
     currentAdmin,
@@ -102,12 +149,34 @@ export const AnyAdminProtectedRoute = ({
   // Show loading spinner while checking authentication
   if (adminLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="text-center bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-2xl">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-400 mx-auto"></div>
+      <div
+        className={`flex items-center justify-center min-h-screen ${
+          isDarkMode
+            ? "bg-gradient-to-br from-slate-900 via-gray-900 to-slate-900"
+            : "bg-gradient-to-br from-gray-50 via-white to-gray-50"
+        }`}
+      >
+        <div
+          className={`text-center backdrop-blur-lg rounded-2xl p-8 border shadow-2xl ${
+            isDarkMode
+              ? "bg-white/10 border-white/20"
+              : "bg-gray-900/10 border-gray-300/20"
+          }`}
+        >
+          <div
+            className={`animate-spin rounded-full h-16 w-16 border-b-2 mx-auto ${
+              isDarkMode ? "border-gray-400" : "border-gray-600"
+            }`}
+          ></div>
           <div className="mt-4 flex items-center justify-center">
-            <ShieldIcon className="h-5 w-5 text-purple-400 mr-2" />
-            <p className="text-white">Verifying admin access...</p>
+            <ShieldIcon
+              className={`h-5 w-5 mr-2 ${
+                isDarkMode ? "text-gray-400" : "text-gray-600"
+              }`}
+            />
+            <p className={isDarkMode ? "text-white" : "text-gray-700"}>
+              Verifying admin access...
+            </p>
           </div>
         </div>
       </div>
@@ -133,6 +202,7 @@ export const AnyAdminProtectedRoute = ({
 
 // Component for unauthorized access page
 export const AdminUnauthorized = () => {
+  const { isDarkMode } = useTheme();
   const { currentAdmin, logoutAdmin, isSuperAdmin } = useContext(AuthContext);
 
   const handleGoBack = () => {
@@ -150,73 +220,141 @@ export const AdminUnauthorized = () => {
 
   return (
     <div
-      className={`min-h-screen  bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4`}
+      className={`min-h-screen flex items-center justify-center p-4 ${
+        isDarkMode
+          ? "bg-gradient-to-br from-slate-900 via-gray-900 to-slate-900"
+          : "bg-gradient-to-br from-gray-50 via-white to-gray-50"
+      }`}
     >
-      <div className="max-w-md w-full bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-2xl text-center">
+      <div
+        className={`max-w-md w-full backdrop-blur-sm rounded-2xl p-8 border shadow-sm text-center ${
+          isDarkMode
+            ? "bg-white/10 border-white/20"
+            : "bg-gray-900/10 border-gray-300/20"
+        }`}
+      >
         <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <AlertTriangle className="h-8 w-8 text-red-400" />
         </div>
-
-        <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
-        <p className="text-slate-300 mb-6">
+        <h1
+          className={`text-2xl font-bold mb-2 ${
+            isDarkMode ? "text-white" : "text-gray-800"
+          }`}
+        >
+          Access Denied
+        </h1>
+        <p
+          className={`mb-6 ${isDarkMode ? "text-slate-300" : "text-gray-600"}`}
+        >
           You don't have permission to access this resource. Please contact a
           super administrator if you believe this is an error.
         </p>
-
-        <div className="bg-white/5 rounded-lg p-4 mb-6 border border-white/10">
-          <p className="text-sm text-slate-300 mb-1">
-            <span className="font-medium text-white">Current Admin:</span>{" "}
+        <div
+          className={`rounded-lg p-4 mb-6 border ${
+            isDarkMode
+              ? "bg-white/5 border-white/10"
+              : "bg-gray-900/5 border-gray-300/10"
+          }`}
+        >
+          <p
+            className={`text-sm mb-1 ${
+              isDarkMode ? "text-slate-300" : "text-gray-600"
+            }`}
+          >
+            <span
+              className={`font-medium ${
+                isDarkMode ? "text-white" : "text-gray-800"
+              }`}
+            >
+              Current Admin:
+            </span>{" "}
             {currentAdmin?.fullName ||
               currentAdmin?.userName ||
               currentAdmin?.email}
           </p>
-          <p className="text-sm text-slate-300">
-            <span className="font-medium text-white">Role:</span>{" "}
+          <p
+            className={`text-sm ${
+              isDarkMode ? "text-slate-300" : "text-gray-600"
+            }`}
+          >
+            <span
+              className={`font-medium ${
+                isDarkMode ? "text-white" : "text-gray-800"
+              }`}
+            >
+              Role:
+            </span>{" "}
             <span
               className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                 isSuperAdmin()
-                  ? "bg-purple-500/20 text-purple-300"
-                  : "bg-blue-500/20 text-blue-300"
+                  ? "bg-gray-200/20 text-gray-600"
+                  : "bg-gray-200/20 text-gray-900"
               }`}
             >
               {currentAdmin?.role || "Admin"}
             </span>
           </p>
           {currentAdmin?.isAdmin && (
-            <p className="text-sm text-slate-300 mt-1">
-              <span className="font-medium text-white">Admin Status:</span>{" "}
+            <p
+              className={`text-sm mt-1 ${
+                isDarkMode ? "text-slate-300" : "text-gray-600"
+              }`}
+            >
+              <span
+                className={`font-medium ${
+                  isDarkMode ? "text-white" : "text-gray-800"
+                }`}
+              >
+                Admin Status:
+              </span>{" "}
               <span className="text-green-400">Active</span>
             </p>
           )}
         </div>
-
         <div className="space-y-3">
           <button
             onClick={handleGoBack}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-transparent"
+            className={`w-full font-medium py-3 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent ${
+              isDarkMode
+                ? "bg-gray-600 hover:bg-gray-700 text-white focus:ring-gray-500"
+                : "bg-gray-700 hover:bg-gray-800 text-white focus:ring-gray-600"
+            }`}
           >
             Go Back
           </button>
           <button
             onClick={handleGoToDashboard}
-            className="w-full bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-4 rounded-lg border border-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+            className={`w-full font-medium py-3 px-4 rounded-lg border transition-colors focus:outline-none focus:ring-2 ${
+              isDarkMode
+                ? "bg-white/10 hover:bg-white/20 text-white border-white/20 focus:ring-white/50"
+                : "bg-gray-900/10 hover:bg-gray-900/20 text-gray-700 border-gray-300/20 focus:ring-gray-500/50"
+            }`}
           >
             Go to Dashboard
           </button>
           <button
             onClick={handleLogout}
-            className="w-full bg-red-600/20 hover:bg-red-600/30 text-red-300 font-medium py-3 px-4 rounded-lg border border-red-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+            className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-3 px-4 rounded-lg border border-red-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
           >
             Logout
           </button>
         </div>
-
         {/* Help text */}
-        <div className="mt-6 pt-6 border-t border-white/10">
-          <p className="text-xs text-slate-400">
+        <div
+          className={`mt-6 pt-6 border-t ${
+            isDarkMode ? "border-white/10" : "border-gray-300/10"
+          }`}
+        >
+          <p
+            className={`text-xs ${
+              isDarkMode ? "text-slate-400" : "text-gray-500"
+            }`}
+          >
             If you need elevated permissions, please contact your system
             administrator or the super admin at{" "}
-            <span className="text-purple-400">vidzio.app@gmail.com</span>
+            <span className={isDarkMode ? "text-gray-400" : "text-gray-600"}>
+              vidzio.app@gmail.com
+            </span>
           </p>
         </div>
       </div>
@@ -230,13 +368,18 @@ export const AdminRoleGuard = ({
   allowedRoles = ["admin", "superadmin"],
   fallback = null,
 }) => {
+  const { isDarkMode } = useTheme();
   const { currentAdmin, adminLoading, isAdminAuthenticated } =
     useContext(AuthContext);
 
   if (adminLoading) {
     return (
       <div className="flex items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-400"></div>
+        <div
+          className={`animate-spin rounded-full h-6 w-6 border-b-2 ${
+            isDarkMode ? "border-gray-400" : "border-gray-600"
+          }`}
+        ></div>
       </div>
     );
   }

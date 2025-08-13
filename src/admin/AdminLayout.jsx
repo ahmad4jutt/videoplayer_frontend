@@ -250,10 +250,10 @@ const AdminLayout = () => {
                 )}
               </button>
 
-              <button className="relative p-2 theme-text-secondary hover:theme-text-primary theme-hover-bg rounded-lg transition-colors theme-transition">
+              {/* <button className="relative p-2 theme-text-secondary hover:theme-text-primary theme-hover-bg rounded-lg transition-colors theme-transition">
                 <BellIcon className="h-5 w-5" />
                 <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-              </button>
+              </button> */}
 
               <div className="flex items-center space-x-3 pl-4 border-l theme-border">
                 {adminData?.avatar ? (
@@ -282,7 +282,7 @@ const AdminLayout = () => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto theme-bg-primary theme-transition">
-          <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="max-w-7xl mx-auto ">
             <Outlet />
           </div>
         </main>

@@ -6,6 +6,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import ResetPasswordPage from "./Components/auth/ResetPasswordPage";
 import Loginpage from "./Components/auth/Loginpage";
 import Regiserpage from "./Components/auth/Registerpage";
+import NotFoundPage from "./Components/auth/NotFoundPage";
 
 //user
 import Profilepage from "./Components/user/Profilepage";
@@ -47,6 +48,7 @@ function App() {
             <Routes>
               {/* Auth routes - No Layout (typically full screen) */}
               <Route path="/login" element={<Loginpage />} />
+
               <Route path="/register" element={<Regiserpage />} />
               <Route
                 path="/reset-password/:token"
@@ -68,6 +70,7 @@ function App() {
                           </ProtectedRoute>
                         }
                       />
+                      <Route path="*" element={<NotFoundPage />} />
 
                       <Route path="/help" element={<HelpPage />} />
                       <Route

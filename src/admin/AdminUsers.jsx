@@ -27,6 +27,7 @@ import {
 } from "../services/api";
 import { useAuth } from "../hooks/UseAuth";
 import { useTheme } from "../context/ThemeContext";
+import { toast } from "react-toastify";
 
 const AdminUsers = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -192,7 +193,7 @@ const AdminUsers = () => {
 
   const handleDeactivateUser = async () => {
     if (!deactivationReason.trim()) {
-      alert("Please provide a reason for deactivation");
+      toast.warn("Please provide a reason for deactivation");
       return;
     }
 
@@ -251,7 +252,7 @@ const AdminUsers = () => {
 
   const handleDeleteUser = async () => {
     if (confirmDelete !== actionUser?.userName) {
-      alert(`Please type "${actionUser?.userName}" to confirm deletion`);
+      toast.error(`Please type "${actionUser?.userName}" to confirm deletion`);
       return;
     }
 
@@ -359,16 +360,6 @@ const AdminUsers = () => {
                 </p>
               </div>
             </div>
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-lg transition-colors ${
-                isDarkMode
-                  ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-              }`}
-            >
-              {isDarkMode ? "☀️" : "🌙"}
-            </button>
           </div>
         </div>
       </div>

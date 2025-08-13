@@ -15,16 +15,20 @@ import {
   MoreHorizontal,
   Video,
   Zap,
+  Bookmark,
+  FileText,
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   getUserChannelVideos,
   isUserSubscribed,
   toggleSubscription,
+  getUserPlaylists,
 } from "../../services/api";
 import { useAuth } from "../../hooks/UseAuth";
 import { useParams } from "react-router-dom";
 import { useTheme } from "../../context/ThemeContext";
+import { toast } from "react-toastify";
 
 const UserChannelPage = () => {
   const navigate = useNavigate();
@@ -46,10 +50,14 @@ const UserChannelPage = () => {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const { userId } = useParams();
   const { token } = useAuth();
+  //playlist
+  const [playlists, setPlaylists] = useState([]);
+  const [playlistsLoading, setPlaylistsLoading] = useState(false);
 
   useEffect(() => {
     fetchChannelData();
     checkSubscriptionStatus();
+    fetchUserPlaylists();
   }, [currentPage, sortBy, sortType, limit]);
 
   const fetchChannelData = async () => {
@@ -70,7 +78,21 @@ const UserChannelPage = () => {
       setLoading(false);
     }
   };
+  const fetchUserPlaylists = async () => {
+    try {
+      setPlaylistsLoading(true);
+      const response = await getUserPlaylists(token, userId);
 
+      const publicPlaylists = response.data.data.filter(
+        (playlist) => playlist.isPublic || subscriptionData?.isOwnChannel
+      );
+      setPlaylists(publicPlaylists);
+    } catch (err) {
+      console.error("Error fetching playlists:", err);
+    } finally {
+      setPlaylistsLoading(false);
+    }
+  };
   const checkSubscriptionStatus = async () => {
     try {
       setSubscriptionLoading(true);
@@ -78,6 +100,7 @@ const UserChannelPage = () => {
       setSubscriptionData(response.data.data);
     } catch (err) {
       console.error("Error checking subscription status:", err);
+      setPlaylists([]);
     } finally {
       setSubscriptionLoading(false);
     }
@@ -185,7 +208,7 @@ const UserChannelPage = () => {
     try {
       await navigator.clipboard.writeText(text);
       // You might want to show a toast notification here
-      alert("Link copied to clipboard!");
+      toast.success("Link copied to clipboard!");
       setShowShareMenu(false);
     } catch (error) {
       console.error("Failed to copy:", error);
@@ -211,58 +234,54 @@ const UserChannelPage = () => {
     setShowShareMenu(false);
   };
   const VideoCard = ({ video }) => (
-    <div
-      className={`group ${
-        isDarkMode ? "bg-gray-800" : "bg-white"
-      } rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border ${
-        isDarkMode
-          ? "border-gray-700 hover:border-gray-600"
-          : "border-gray-100 hover:border-gray-200"
-      } transform hover:-translate-y-1`}
-    >
-      <div className="relative overflow-hidden">
-        <img
-          src={video.thumbnail.url}
-          alt={video.title}
-          className="w-full h-52 object-cover group-hover:scale-110 transition-transform duration-700"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-          <div className="bg-white/20 backdrop-blur-md rounded-full p-4 transform scale-75 group-hover:scale-100 transition-transform duration-300">
-            <Play className="text-white" size={32} fill="white" />
-          </div>
-        </div>
-        <div className="absolute bottom-3 right-3">
-          <span className="bg-black/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg text-sm font-medium">
-            {formatDuration(video.duration)}
-          </span>
-        </div>
-        {video.duration <= 60 && (
-          <div className="absolute top-3 left-3">
-            <div className="bg-red-600 text-white px-2 py-1 rounded-md text-xs font-bold flex items-center">
-              <Zap size={12} className="mr-1" />
-              SHORT
+    <div>
+      <div
+        className={`group ${
+          isDarkMode ? "bg-gray-800" : "bg-white"
+        } rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border ${
+          isDarkMode
+            ? "border-gray-700 hover:border-gray-600"
+            : "border-gray-100 hover:border-gray-200"
+        } transform hover:-translate-y-1`}
+      >
+        <div className="relative overflow-hidden">
+          <img
+            src={video.thumbnail.url}
+            alt={video.title}
+            className="w-full h-38 object-cover group-hover:scale-110 transition-transform duration-700"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+            <div className="bg-white/20 backdrop-blur-md rounded-full p-4 transform scale-75 group-hover:scale-100 transition-transform duration-300">
+              <Play className="text-white" size={32} fill="white" />
             </div>
           </div>
-        )}
+          <div className="absolute bottom-3 right-3">
+            <span className="bg-black/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg text-sm font-medium">
+              {formatDuration(video.duration)}
+            </span>
+          </div>
+          {video.duration <= 60 && (
+            <div className="absolute top-3 left-3">
+              <div className="bg-red-600 text-white px-2 py-1 rounded-md text-xs font-bold flex items-center">
+                <Zap size={12} className="mr-1" />
+                SHORT
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-      <div className="p-5">
+      <div className="">
         <h3
           className={`font-bold ${
             isDarkMode
               ? "text-white group-hover:text-blue-400"
               : "text-gray-900 group-hover:text-blue-600"
-          } text-lg mb-2 line-clamp-2 transition-colors duration-300`}
+          } text-lg  line-clamp-2 transition-colors duration-300`}
         >
           {video.title}
         </h3>
-        <p
-          className={`${
-            isDarkMode ? "text-gray-300" : "text-gray-600"
-          } text-sm mb-4 line-clamp-2 leading-relaxed`}
-        >
-          {video.description}
-        </p>
+
         <div className="flex items-center justify-between text-sm">
           <div
             className={`flex items-center space-x-4 ${
@@ -271,11 +290,12 @@ const UserChannelPage = () => {
           >
             <div
               className={`flex items-center ${
-                isDarkMode ? "bg-gray-700" : "bg-gray-50"
-              } px-2.5 py-1 rounded-full`}
+                isDarkMode ? "bg-transparent" : "bg-gray-50"
+              }  py-1 `}
             >
-              <Eye size={14} className="mr-1.5" />
-              <span className="font-medium">{formatViews(video.views)}</span>
+              <span className="font-medium">
+                {formatViews(video.views)} views
+              </span>
             </div>
             <div className="flex items-center">
               <Calendar size={14} className="mr-1.5" />
@@ -286,7 +306,92 @@ const UserChannelPage = () => {
       </div>
     </div>
   );
-
+  const PlaylistCard = ({ playlist }) => (
+    <div>
+      <div
+        className={`group ${
+          isDarkMode ? "bg-gray-800" : "bg-white"
+        } rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 border ${
+          isDarkMode
+            ? "border-gray-700 hover:border-gray-600"
+            : "border-gray-100 hover:border-gray-200"
+        } transform hover:-translate-y-1`}
+      >
+        <div className="relative overflow-hidden">
+          {playlist.videos.length > 0 ? (
+            <div className="relative">
+              <img
+                src={playlist.videos[0].thumbnail.url}
+                alt={playlist.name}
+                className="w-full h-38 object-cover group-hover:scale-110 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute bottom-3 right-3">
+                <div className="bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center">
+                  <Bookmark size={14} className="mr-1.5" />
+                  {playlist.videos.length} videos
+                </div>
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                <div className="bg-white/20 backdrop-blur-md rounded-full p-4 transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                  <Play className="text-white" size={32} fill="white" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              className={`w-full h-52 ${
+                isDarkMode ? "bg-gray-700" : "bg-gray-100"
+              } flex items-center justify-center`}
+            >
+              <div className="text-center">
+                <Bookmark
+                  size={48}
+                  className={
+                    isDarkMode ? "text-gray-500 mb-2" : "text-gray-400 mb-2"
+                  }
+                />
+                <p
+                  className={`text-sm ${
+                    isDarkMode ? "text-gray-400" : "text-gray-500"
+                  }`}
+                >
+                  No videos
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="">
+        <h3
+          className={`font-bold ${
+            isDarkMode
+              ? "text-white group-hover:text-blue-400"
+              : "text-gray-900 group-hover:text-blue-600"
+          } text-lg  line-clamp-2 transition-colors duration-300`}
+        >
+          {playlist.name}
+        </h3>
+        {playlist.description && (
+          <p
+            className={`${
+              isDarkMode ? "text-gray-300" : "text-gray-600"
+            } text-sm mb-4 line-clamp-2 leading-relaxed`}
+          >
+            View full playlist
+          </p>
+        )}
+        <div className="flex items-center justify-between text-sm">
+          <div
+            className={`flex items-center space-x-4 ${
+              isDarkMode ? "text-gray-400" : "text-gray-500"
+            }`}
+          ></div>
+        </div>
+      </div>
+    </div>
+  );
   const VideoListItem = ({ video }) => (
     <div
       className={`group ${
@@ -760,6 +865,7 @@ const UserChannelPage = () => {
       </div>
 
       {/* Content Sections */}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Section Tabs */}
         <div
@@ -767,12 +873,12 @@ const UserChannelPage = () => {
             isDarkMode
               ? "bg-gray-800 border-gray-700"
               : "bg-white border-gray-100"
-          } rounded-2xl shadow-sm border p-6 mb-8`}
+          } rounded-2xl shadow-sm border p-3 sm:p-6 mb-8`}
         >
-          <div className="flex items-center space-x-8 mb-8 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-2 sm:space-x-8 mb-8 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
             <div
               onClick={() => setActiveSection("videos")}
-              className={`relative flex items-center space-x-3 px-6 py-4 cursor-pointer font-medium transition-all duration-300 group ${
+              className={`relative flex items-center space-x-2 sm:space-x-3 px-3 sm:px-6 py-3 sm:py-4 cursor-pointer font-medium transition-all duration-300 group whitespace-nowrap ${
                 activeSection === "videos"
                   ? "text-blue-600 dark:text-blue-400"
                   : `${
@@ -783,17 +889,17 @@ const UserChannelPage = () => {
               }`}
             >
               <Video
-                size={20}
-                className="transition-transform duration-300 group-hover:scale-110"
+                size={16}
+                className="sm:w-5 sm:h-5 transition-transform duration-300 group-hover:scale-110"
               />
-              <span className="text-lg">Videos</span>
+              <span className="text-sm sm:text-lg">Videos</span>
               <span
-                className={`px-3 py-1 rounded-full text-sm font-semibold transition-all duration-300 ${
+                className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 ${
                   activeSection === "videos"
                     ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 scale-105"
                     : `${
                         isDarkMode
-                          ? "bg-gray-800 text-gray-400 group-hover:bg-gray-700 group-hover:text-gray-300"
+                          ? "bg-gray-800 text-gray-100 group-hover:bg-gray-700 group-hover:text-gray-300"
                           : "bg-gray-100 text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-700"
                       }`
                 }`}
@@ -812,7 +918,7 @@ const UserChannelPage = () => {
 
             <div
               onClick={() => setActiveSection("shorts")}
-              className={`relative flex items-center space-x-3 px-6 py-4 cursor-pointer font-medium transition-all duration-300 group ${
+              className={`relative flex items-center space-x-2 sm:space-x-3 px-3 sm:px-6 py-3 sm:py-4 cursor-pointer font-medium transition-all duration-300 group whitespace-nowrap ${
                 activeSection === "shorts"
                   ? "text-red-600 dark:text-red-400"
                   : `${
@@ -823,12 +929,12 @@ const UserChannelPage = () => {
               }`}
             >
               <Zap
-                size={20}
-                className="transition-transform duration-300 group-hover:scale-110"
+                size={16}
+                className="sm:w-5 sm:h-5 transition-transform duration-300 group-hover:scale-110"
               />
-              <span className="text-lg">Shorts</span>
+              <span className="text-sm sm:text-lg">Shorts</span>
               <span
-                className={`px-3 py-1 rounded-full text-sm font-semibold transition-all duration-300 ${
+                className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 ${
                   activeSection === "shorts"
                     ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 scale-105"
                     : `${
@@ -849,245 +955,191 @@ const UserChannelPage = () => {
                 }`}
               />
             </div>
-          </div>
 
-          {/* Enhanced Controls */}
-          {/* <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-4 lg:space-y-0">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <label
-                  className={`text-sm font-medium ${
-                    isDarkMode ? "text-gray-300" : "text-gray-700"
-                  }`}
-                >
-                  Sort by:
-                </label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className={`border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    isDarkMode
-                      ? "bg-gray-700 hover:bg-gray-600 text-white border-gray-600"
-                      : "bg-gray-50 hover:bg-gray-100"
-                  } transition-colors`}
-                >
-                  <option value="createdAt">Date</option>
-                  <option value="title">Title</option>
-                  <option value="views">Views</option>
-                  <option value="duration">Duration</option>
-                </select>
-              </div>
-
-              <select
-                value={sortType}
-                onChange={(e) => setSortType(e.target.value)}
-                className={`border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode
-                    ? "bg-gray-700 hover:bg-gray-600 text-white border-gray-600"
-                    : "bg-gray-50 hover:bg-gray-100"
-                } transition-colors`}
+            <div
+              onClick={() => setActiveSection("playlists")}
+              className={`relative flex items-center space-x-2 sm:space-x-3 px-3 sm:px-6 py-3 sm:py-4 cursor-pointer font-medium transition-all duration-300 group whitespace-nowrap ${
+                activeSection === "playlists"
+                  ? "text-purple-600 dark:text-purple-400"
+                  : `${
+                      isDarkMode
+                        ? "text-gray-400 hover:text-gray-200"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`
+              }`}
+            >
+              <Bookmark
+                size={16}
+                className="sm:w-5 sm:h-5 transition-transform duration-300 group-hover:scale-110"
+              />
+              <span className="text-sm sm:text-lg">Playlists</span>
+              <span
+                className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 ${
+                  activeSection === "playlists"
+                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 scale-105"
+                    : `${
+                        isDarkMode
+                          ? "bg-gray-800 text-gray-400 group-hover:bg-gray-700 group-hover:text-gray-300"
+                          : "bg-gray-100 text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-700"
+                      }`
+                }`}
               >
-                <option value="desc">Newest first</option>
-                <option value="asc">Oldest first</option>
-              </select>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <select
-                value={limit}
-                onChange={(e) => setLimit(Number(e.target.value))}
-                className={`border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode
-                    ? "bg-gray-700 hover:bg-gray-600 text-white border-gray-600"
-                    : "bg-gray-50 hover:bg-gray-100"
-                } transition-colors`}
-              >
-                <option value={12}>12 per page</option>
-                <option value={24}>24 per page</option>
-                <option value={48}>48 per page</option>
-              </select>
-
+                {playlists.length}
+              </span>
               <div
-                className={`flex ${
-                  isDarkMode ? "bg-gray-700" : "bg-gray-100"
-                } rounded-xl p-1`}
-              >
-                <button
-                  onClick={() => setViewType("grid")}
-                  className={`p-2.5 rounded-lg transition-all duration-300 ${
-                    viewType === "grid"
-                      ? "bg-blue-600 text-white shadow-md"
-                      : `${
-                          isDarkMode
-                            ? "text-gray-400 hover:bg-gray-600"
-                            : "text-gray-600 hover:bg-gray-200"
-                        }`
-                  }`}
-                >
-                  <Grid size={18} />
-                </button>
-                <button
-                  onClick={() => setViewType("list")}
-                  className={`p-2.5 rounded-lg transition-all duration-300 ${
-                    viewType === "list"
-                      ? "bg-blue-600 text-white shadow-md"
-                      : `${
-                          isDarkMode
-                            ? "text-gray-400 hover:bg-gray-600"
-                            : "text-gray-600 hover:bg-gray-200"
-                        }`
-                  }`}
-                >
-                  <List size={18} />
-                </button>
-              </div>
+                className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-purple-500 to-purple-600 transition-all duration-300 ${
+                  activeSection === "playlists"
+                    ? "w-full opacity-100"
+                    : "w-0 opacity-0 group-hover:w-full group-hover:opacity-100"
+                }`}
+              />
             </div>
-          </div> */}
+          </div>
         </div>
 
-        {/* Videos */}
-        {filteredVideos.length > 0 ? (
-          <div
-            className={
-              viewType === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
-                : "space-y-6"
-            }
-          >
-            {filteredVideos.map((video) =>
-              viewType === "grid" ? (
+        {/* Content based on active section */}
+        {activeSection === "playlists" &&
+          // Playlists Section
+          (playlistsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {[...Array(8)].map((_, index) => (
+                <div
+                  key={index}
+                  className={`${
+                    isDarkMode ? "bg-gray-800" : "bg-white"
+                  } rounded-2xl overflow-hidden shadow-sm animate-pulse`}
+                >
+                  <div
+                    className={`h-52 ${
+                      isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                    }`}
+                  ></div>
+                  <div className="p-5 space-y-3">
+                    <div
+                      className={`h-4 ${
+                        isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                      } rounded`}
+                    ></div>
+                    <div
+                      className={`h-3 ${
+                        isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                      } rounded w-2/3`}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : playlists.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
+              {playlists.map((playlist) => (
                 <button
-                  key={video._id}
-                  onClick={() => handleVideoClick(video._id)}
+                  key={playlist._id}
+                  onClick={() => navigate(`/playlists/${playlist._id}`)}
                   className="text-left"
                 >
-                  <VideoCard video={video} />
+                  <PlaylistCard playlist={playlist} />
                 </button>
-              ) : (
-                <button
-                  key={video._id}
-                  onClick={() => handleVideoClick(video._id)}
-                  className="text-left w-full"
-                >
-                  <VideoListItem video={video} />
-                </button>
-              )
-            )}
-          </div>
-        ) : (
-          <div
-            className={`text-center py-20 ${
-              isDarkMode
-                ? "bg-gray-800 border-gray-700"
-                : "bg-white border-gray-100"
-            } rounded-2xl border`}
-          >
+              ))}
+            </div>
+          ) : (
             <div
-              className={`w-24 h-24 ${
-                isDarkMode ? "bg-gray-700" : "bg-gray-100"
-              } rounded-full flex items-center justify-center mx-auto mb-6`}
+              className={`text-center py-20 ${
+                isDarkMode
+                  ? "bg-gray-800 border-gray-700"
+                  : "bg-white border-gray-100"
+              } rounded-2xl border`}
             >
-              {activeSection === "shorts" ? (
-                <Zap
+              <div
+                className={`w-24 h-24 ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-100"
+                } rounded-full flex items-center justify-center mx-auto mb-6`}
+              >
+                <Bookmark
                   size={32}
                   className={isDarkMode ? "text-gray-500" : "text-gray-400"}
                 />
-              ) : (
-                <Play
-                  size={32}
-                  className={isDarkMode ? "text-gray-500" : "text-gray-400"}
-                />
+              </div>
+              <h3
+                className={`text-xl font-semibold ${
+                  isDarkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
+              >
+                No public playlists found
+              </h3>
+              <p className={isDarkMode ? "text-gray-400" : "text-gray-500"}>
+                This channel hasn't created any public playlists yet.
+              </p>
+            </div>
+          ))}
+
+        {/* Videos and Shorts Section */}
+        {(activeSection === "videos" || activeSection === "shorts") &&
+          (filteredVideos.length > 0 ? (
+            <div
+              className={
+                viewType === "grid"
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
+                  : "space-y-6"
+              }
+            >
+              {filteredVideos.map((video) =>
+                viewType === "grid" ? (
+                  <button
+                    key={video._id}
+                    onClick={() => handleVideoClick(video._id)}
+                    className="text-left"
+                  >
+                    <VideoCard video={video} />
+                  </button>
+                ) : (
+                  <button
+                    key={video._id}
+                    onClick={() => handleVideoClick(video._id)}
+                    className="text-left w-full"
+                  >
+                    <VideoListItem video={video} />
+                  </button>
+                )
               )}
             </div>
-            <h3
-              className={`text-xl font-semibold ${
-                isDarkMode ? "text-gray-300" : "text-gray-700"
-              } mb-2`}
+          ) : (
+            <div
+              className={`text-center py-20 ${
+                isDarkMode
+                  ? "bg-gray-800 border-gray-700"
+                  : "bg-white border-gray-100"
+              } rounded-2xl border`}
             >
-              No {activeSection === "shorts" ? "shorts" : "videos"} found
-            </h3>
-            <p className={isDarkMode ? "text-gray-400" : "text-gray-500"}>
-              This channel hasn't uploaded any{" "}
-              {activeSection === "shorts" ? "shorts" : "videos"} yet.
-            </p>
-          </div>
-        )}
-
-        {/* Enhanced Pagination */}
-        {/* {pagination.pages > 1 && (
-          <div className="flex justify-center items-center space-x-2 mt-12">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={!pagination.hasPrev}
-              className={`p-3 rounded-xl transition-all duration-300 ${
-                pagination.hasPrev
-                  ? `${
-                      isDarkMode
-                        ? "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border-gray-700"
-                        : "bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 border-gray-200"
-                    } border shadow-sm hover:shadow-md`
-                  : `${
-                      isDarkMode
-                        ? "bg-gray-800 text-gray-600"
-                        : "bg-gray-100 text-gray-400"
-                    } cursor-not-allowed`
-              }`}
-            >
-              <ChevronLeft size={20} />
-            </button>
-
-            {[...Array(Math.min(pagination.pages, 7))].map((_, index) => {
-              let pageNum;
-              if (pagination.pages <= 7) {
-                pageNum = index + 1;
-              } else if (currentPage <= 4) {
-                pageNum = index + 1;
-              } else if (currentPage >= pagination.pages - 3) {
-                pageNum = pagination.pages - 6 + index;
-              } else {
-                pageNum = currentPage - 3 + index;
-              }
-
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => handlePageChange(pageNum)}
-                  className={`px-4 py-3 rounded-xl font-medium transition-all duration-300 ${
-                    currentPage === pageNum
-                      ? "bg-blue-600 text-white shadow-lg scale-105"
-                      : `${
-                          isDarkMode
-                            ? "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border-gray-700"
-                            : "bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 border-gray-200"
-                        } border shadow-sm hover:shadow-md`
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={!pagination.hasNext}
-              className={`p-3 rounded-xl transition-all duration-300 ${
-                pagination.hasNext
-                  ? `${
-                      isDarkMode
-                        ? "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border-gray-700"
-                        : "bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 border-gray-200"
-                    } border shadow-sm hover:shadow-md`
-                  : `${
-                      isDarkMode
-                        ? "bg-gray-800 text-gray-600"
-                        : "bg-gray-100 text-gray-400"
-                    } cursor-not-allowed`
-              }`}
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        )} */}
+              <div
+                className={`w-24 h-24 ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-100"
+                } rounded-full flex items-center justify-center mx-auto mb-6`}
+              >
+                {activeSection === "shorts" ? (
+                  <Zap
+                    size={32}
+                    className={isDarkMode ? "text-gray-500" : "text-gray-400"}
+                  />
+                ) : (
+                  <Play
+                    size={32}
+                    className={isDarkMode ? "text-gray-500" : "text-gray-400"}
+                  />
+                )}
+              </div>
+              <h3
+                className={`text-xl font-semibold ${
+                  isDarkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
+              >
+                No {activeSection === "shorts" ? "shorts" : "videos"} found
+              </h3>
+              <p className={isDarkMode ? "text-gray-400" : "text-gray-500"}>
+                This channel hasn't uploaded any{" "}
+                {activeSection === "shorts" ? "shorts" : "videos"} yet.
+              </p>
+            </div>
+          ))}
       </div>
     </div>
   );
