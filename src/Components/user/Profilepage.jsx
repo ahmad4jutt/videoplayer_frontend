@@ -15,6 +15,7 @@ import {
   Power,
   PowerOff,
   AlertTriangle,
+  ArrowLeft,
 } from "lucide-react";
 import {
   getcurrentUser,
@@ -28,6 +29,52 @@ import {
 } from "../../services/api";
 import { useAuth } from "../../hooks/UseAuth";
 import { useTheme } from "../../context/ThemeContext";
+import { useNavigate } from "react-router-dom";
+
+// Move Modal component OUTSIDE of the main component
+const Modal = ({ isOpen, onClose, title, children, isDarkMode }) => {
+  const handleModalClick = (e) => {
+    e.stopPropagation();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className={`rounded-2xl max-w-md w-full p-6 shadow-2xl ${
+          isDarkMode ? "bg-gray-800" : "bg-white"
+        }`}
+        onClick={handleModalClick}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3
+            className={`text-xl font-bold ${
+              isDarkMode ? "text-white" : "text-gray-800"
+            }`}
+          >
+            {title}
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className={`p-1 ${
+              isDarkMode
+                ? "text-gray-400 hover:text-gray-300"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <X size={20} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const Profilepage = () => {
   const [user, setUser] = useState(null);
@@ -36,7 +83,6 @@ const Profilepage = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const [showPassword, setShowPassword] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [actionLoading, setActionLoading] = useState({
     delete: false,
     deactivate: false,
@@ -59,6 +105,7 @@ const Profilepage = () => {
   const [success, setSuccess] = useState("");
   const { token, currentUser, logout } = useAuth();
   const { isDarkMode } = useTheme();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchCurrentUser();
@@ -106,6 +153,10 @@ const Profilepage = () => {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleBack = () => {
+    navigate(-1);
   };
 
   const handleSaveChanges = async () => {
@@ -214,24 +265,6 @@ const Profilepage = () => {
     }
   };
 
-  const handleReactivateAccount = async () => {
-    try {
-      setActionLoading((prev) => ({ ...prev, reactivate: true }));
-      setError("");
-      setSuccess("");
-
-      await reactivateAccount({ email: user.email });
-
-      setSuccess("Account reactivated successfully!");
-      fetchCurrentUser();
-    } catch (error) {
-      setError(error.message || "Failed to reactivate account");
-      console.error("Error reactivating account:", error);
-    } finally {
-      setActionLoading((prev) => ({ ...prev, reactivate: false }));
-    }
-  };
-
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -313,42 +346,6 @@ const Profilepage = () => {
     setError("");
   };
 
-  // Modal Component
-  const Modal = ({ isOpen, onClose, title, children }) => {
-    if (!isOpen) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div
-          className={`rounded-2xl max-w-md w-full p-6 shadow-2xl ${
-            isDarkMode ? "bg-gray-800" : "bg-white"
-          }`}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3
-              className={`text-xl font-bold ${
-                isDarkMode ? "text-white" : "text-gray-800"
-              }`}
-            >
-              {title}
-            </h3>
-            <button
-              onClick={onClose}
-              className={`p-1 ${
-                isDarkMode
-                  ? "text-gray-400 hover:text-gray-300"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <X size={20} />
-            </button>
-          </div>
-          {children}
-        </div>
-      </div>
-    );
-  };
-
   if (loading && !user) {
     return (
       <div
@@ -401,6 +398,7 @@ const Profilepage = () => {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">{error || success}</span>
               <button
+                type="button"
                 onClick={() => {
                   setError("");
                   setSuccess("");
@@ -423,6 +421,7 @@ const Profilepage = () => {
         isOpen={showDeleteModal}
         onClose={handleCloseDeleteModal}
         title="Delete Account"
+        isDarkMode={isDarkMode}
       >
         <div className="space-y-4">
           <div
@@ -468,6 +467,7 @@ const Profilepage = () => {
                     : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
                 }`}
                 placeholder="Enter your password"
+                autoComplete="current-password"
               />
               <button
                 type="button"
@@ -494,18 +494,21 @@ const Profilepage = () => {
             <input
               type="text"
               value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
+              onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 ${
                 isDarkMode
                   ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
                   : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
               }`}
               placeholder="DELETE"
+              autoComplete="off"
+              spellCheck="false"
             />
           </div>
 
           <div className="flex gap-3 pt-4">
             <button
+              type="button"
               onClick={handleCloseDeleteModal}
               className={`flex-1 px-4 py-2 border rounded-lg ${
                 isDarkMode
@@ -516,6 +519,7 @@ const Profilepage = () => {
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleDeleteAccount}
               disabled={
                 actionLoading.delete ||
@@ -530,6 +534,7 @@ const Profilepage = () => {
         </div>
       </Modal>
 
+      {/* Rest of your component remains the same... */}
       {/* Header with Cover Image */}
       <div className="relative">
         <div
@@ -593,6 +598,7 @@ const Profilepage = () => {
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 -mt-24 relative z-10">
         {/* Profile Header Card */}
+
         <div
           className={`rounded-3xl shadow-xl border p-8 mb-8 ${
             isDarkMode
@@ -1136,51 +1142,6 @@ const Profilepage = () => {
                     Account Actions
                   </h3>
                   <div className="space-y-4">
-                    {/* Reactivate Account (only show if account is deactivated) */}
-                    {user?.isActive === false && (
-                      <div
-                        className={`flex items-center justify-between p-4 rounded-lg border ${
-                          isDarkMode
-                            ? "bg-green-900/20 border-green-700"
-                            : "bg-green-50 border-green-200"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Power
-                            className={`${
-                              isDarkMode ? "text-green-400" : "text-green-600"
-                            }`}
-                            size={24}
-                          />
-                          <div>
-                            <p
-                              className={`font-medium ${
-                                isDarkMode ? "text-green-300" : "text-green-800"
-                              }`}
-                            >
-                              Reactivate Account
-                            </p>
-                            <p
-                              className={`text-sm ${
-                                isDarkMode ? "text-green-400" : "text-green-600"
-                              }`}
-                            >
-                              Restore your account to active status
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={handleReactivateAccount}
-                          disabled={actionLoading.reactivate}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 disabled:opacity-50"
-                        >
-                          {actionLoading.reactivate
-                            ? "Reactivating..."
-                            : "Reactivate"}
-                        </button>
-                      </div>
-                    )}
-
                     {/* Delete Account */}
                     <div
                       className={`flex items-center justify-between p-4 rounded-lg border ${

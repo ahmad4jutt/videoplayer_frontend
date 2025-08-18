@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
-import { getAdminDashboard, getSystemAnalytics } from "../services/api";
+import {
+  getAdminDashboard,
+  getSystemAnalytics,
+  getHealthStatus,
+} from "../services/api";
 import {
   Users,
   Video,
@@ -29,15 +33,16 @@ import {
   Cell,
 } from "recharts";
 import { useAuth } from "../hooks/UseAuth";
+
 const AdminDashboard = () => {
-  const { isDarkMode, toggleTheme } = useTheme();
+  const { isDarkMode } = useTheme();
   const [dashboardData, setDashboardData] = useState(null);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState("7d");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Mock token - replace with actual token from your auth system
+  const [healthStatus, setHealthStatus] = useState(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const { adminToken } = useAuth();
 
   useEffect(() => {
@@ -61,6 +66,27 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchHealthStatus = async () => {
+    try {
+      setHealthLoading(true);
+      const response = await getHealthStatus();
+      setHealthStatus(response.data.data);
+    } catch (err) {
+      console.error("Health check failed:", err);
+      setHealthStatus({
+        status: "ERROR",
+        serverTime: new Date().toISOString(),
+      });
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchHealthStatus();
+    // Optional: Set up periodic health checks every 30 seconds
+    const healthInterval = setInterval(fetchHealthStatus, 30000);
+    return () => clearInterval(healthInterval);
+  }, []);
   const fetchAnalyticsData = async () => {
     try {
       const response = await getSystemAnalytics(adminToken, selectedPeriod);
@@ -120,6 +146,36 @@ const AdminDashboard = () => {
   };
 
   const UserActivityChart = ({ data }) => {
+    // Check if data exists and has items
+    if (!data || data.length === 0) {
+      return (
+        <div
+          className={`${
+            isDarkMode
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          } p-6 rounded-lg border shadow-sm`}
+        >
+          <h3
+            className={`text-lg font-semibold mb-4 ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            User Registration Trend
+          </h3>
+          <div className="flex items-center justify-center h-72">
+            <p
+              className={`text-sm ${
+                isDarkMode ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
+              No user registration data available
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         className={`${
@@ -135,35 +191,61 @@ const AdminDashboard = () => {
         >
           User Registration Trend
         </h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={isDarkMode ? "#374151" : "#e5e7eb"}
-            />
-            <XAxis
-              dataKey="_id"
-              stroke={isDarkMode ? "#9ca3af" : "#6b7280"}
-              fontSize={12}
-            />
-            <YAxis stroke={isDarkMode ? "#9ca3af" : "#6b7280"} fontSize={12} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
-                border: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
-                borderRadius: "6px",
-                color: isDarkMode ? "#ffffff" : "#000000",
+        <div style={{ width: "100%", height: 320 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={data}
+              margin={{
+                top: 5,
+                right: 20,
+                left: 10,
+                bottom: 25,
               }}
-            />
-            <Line
-              type="monotone"
-              dataKey="count"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={{ fill: "#3b82f6", strokeWidth: 2 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={isDarkMode ? "#374151" : "#e5e7eb"}
+              />
+              <XAxis
+                dataKey="_id"
+                stroke={isDarkMode ? "#9ca3af" : "#6b7280"}
+                fontSize={12}
+                tick={{ fontSize: 11 }}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis
+                stroke={isDarkMode ? "#9ca3af" : "#6b7280"}
+                fontSize={12}
+                tick={{ fontSize: 11 }}
+                width={60}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
+                  border: isDarkMode
+                    ? "1px solid #374151"
+                    : "1px solid #e5e7eb",
+                  borderRadius: "6px",
+                  color: isDarkMode ? "#ffffff" : "#000000",
+                  fontSize: "12px",
+                }}
+                labelStyle={{
+                  color: isDarkMode ? "#ffffff" : "#000000",
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="count"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, stroke: "#3b82f6", strokeWidth: 2 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     );
   };
@@ -175,24 +257,70 @@ const AdminDashboard = () => {
     userAnalytics?.forEach((item) => {
       combinedData[item._id] = {
         date: item._id,
-        newUsers: item.newUsers,
+        newUsers: item.newUsers || 0,
         newVideos: 0,
       };
     });
 
     videoAnalytics?.forEach((item) => {
       if (combinedData[item._id]) {
-        combinedData[item._id].newVideos = item.newVideos;
+        combinedData[item._id].newVideos = item.newVideos || 0;
       } else {
         combinedData[item._id] = {
           date: item._id,
           newUsers: 0,
-          newVideos: item.newVideos,
+          newVideos: item.newVideos || 0,
         };
       }
     });
 
     const chartData = Object.values(combinedData);
+
+    // Check if we have data
+    if (!chartData || chartData.length === 0) {
+      return (
+        <div
+          className={`${
+            isDarkMode
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          } p-6 rounded-lg border shadow-sm`}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h3
+              className={`text-lg font-semibold ${
+                isDarkMode ? "text-white" : "text-gray-900"
+              }`}
+            >
+              System Analytics
+            </h3>
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className={`px-3 py-1 rounded-md border text-sm ${
+                isDarkMode
+                  ? "bg-gray-700 border-gray-600 text-white"
+                  : "bg-white border-gray-300 text-gray-900"
+              }`}
+            >
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+              <option value="1y">Last year</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-center h-72">
+            <p
+              className={`text-sm ${
+                isDarkMode ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
+              No analytics data available for the selected period
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div
@@ -202,7 +330,7 @@ const AdminDashboard = () => {
             : "bg-white border-gray-200"
         } p-6 rounded-lg border shadow-sm`}
       >
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
           <h3
             className={`text-lg font-semibold ${
               isDarkMode ? "text-white" : "text-gray-900"
@@ -225,30 +353,90 @@ const AdminDashboard = () => {
             <option value="1y">Last year</option>
           </select>
         </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={isDarkMode ? "#374151" : "#e5e7eb"}
-            />
-            <XAxis
-              dataKey="date"
-              stroke={isDarkMode ? "#9ca3af" : "#6b7280"}
-              fontSize={12}
-            />
-            <YAxis stroke={isDarkMode ? "#9ca3af" : "#6b7280"} fontSize={12} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
-                border: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
-                borderRadius: "6px",
-                color: isDarkMode ? "#ffffff" : "#000000",
+
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4 mb-4">
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-blue-500 rounded mr-2"></div>
+            <span
+              className={`text-sm ${
+                isDarkMode ? "text-gray-300" : "text-gray-600"
+              }`}
+            >
+              New Users
+            </span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
+            <span
+              className={`text-sm ${
+                isDarkMode ? "text-gray-300" : "text-gray-600"
+              }`}
+            >
+              New Videos
+            </span>
+          </div>
+        </div>
+
+        <div style={{ width: "100%", height: 320 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{
+                top: 5,
+                right: 20,
+                left: 10,
+                bottom: 25,
               }}
-            />
-            <Bar dataKey="newUsers" fill="#3b82f6" name="New Users" />
-            <Bar dataKey="newVideos" fill="#10b981" name="New Videos" />
-          </BarChart>
-        </ResponsiveContainer>
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={isDarkMode ? "#374151" : "#e5e7eb"}
+              />
+              <XAxis
+                dataKey="date"
+                stroke={isDarkMode ? "#9ca3af" : "#6b7280"}
+                fontSize={12}
+                tick={{ fontSize: 11 }}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis
+                stroke={isDarkMode ? "#9ca3af" : "#6b7280"}
+                fontSize={12}
+                tick={{ fontSize: 11 }}
+                width={60}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
+                  border: isDarkMode
+                    ? "1px solid #374151"
+                    : "1px solid #e5e7eb",
+                  borderRadius: "6px",
+                  color: isDarkMode ? "#ffffff" : "#000000",
+                  fontSize: "12px",
+                }}
+                labelStyle={{
+                  color: isDarkMode ? "#ffffff" : "#000000",
+                }}
+              />
+              <Bar
+                dataKey="newUsers"
+                fill="#3b82f6"
+                name="New Users"
+                radius={[2, 2, 0, 0]}
+              />
+              <Bar
+                dataKey="newVideos"
+                fill="#10b981"
+                name="New Videos"
+                radius={[2, 2, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     );
   };
@@ -269,46 +457,61 @@ const AdminDashboard = () => {
         >
           Most Active Users
         </h3>
-        <div className="space-y-4">
-          {users?.slice(0, 5).map((user, index) => (
-            <div key={user._id} className="flex items-center space-x-3">
-              <div className="flex-shrink-0">
-                <img
-                  src={user.avatar}
-                  alt={user.fullName}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
+        {!users || users.length === 0 ? (
+          <div className="flex items-center justify-center h-32">
+            <p
+              className={`text-sm ${
+                isDarkMode ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
+              No active users data available
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {users.slice(0, 5).map((user, index) => (
+              <div key={user._id} className="flex items-center space-x-3">
+                <div className="flex-shrink-0">
+                  <img
+                    src={user.avatar || "/default-avatar.png"}
+                    alt={user.fullName}
+                    className="w-10 h-10 rounded-full object-cover"
+                    onError={(e) => {
+                      e.target.src = "/default-avatar.png";
+                    }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={`text-sm font-medium truncate ${
+                      isDarkMode ? "text-white" : "text-gray-900"
+                    }`}
+                  >
+                    {user.fullName}
+                  </p>
+                  <p
+                    className={`text-sm truncate ${
+                      isDarkMode ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
+                    @{user.userName}
+                  </p>
+                </div>
+                <div className="flex-shrink-0">
+                  <span
+                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                      isDarkMode
+                        ? "bg-blue-900 text-blue-200"
+                        : "bg-blue-100 text-blue-800"
+                    }`}
+                  >
+                    {user.videoCount || 0} videos
+                  </span>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className={`text-sm font-medium ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  }`}
-                >
-                  {user.fullName}
-                </p>
-                <p
-                  className={`text-sm ${
-                    isDarkMode ? "text-gray-400" : "text-gray-500"
-                  }`}
-                >
-                  @{user.userName}
-                </p>
-              </div>
-              <div className="flex-shrink-0">
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                    isDarkMode
-                      ? "bg-blue-900 text-blue-200"
-                      : "bg-blue-100 text-blue-800"
-                  }`}
-                >
-                  {user.videoCount} videos
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -352,10 +555,153 @@ const AdminDashboard = () => {
       </div>
     );
   }
+  const HealthStatusCard = ({ healthData, loading }) => {
+    const getStatusColor = (status) => {
+      switch (status) {
+        case "OK":
+          return "green";
+        case "ERROR":
+          return "red";
+        default:
+          return "yellow";
+      }
+    };
 
+    const getStatusIcon = (status) => {
+      switch (status) {
+        case "OK":
+          return "🟢";
+        case "ERROR":
+          return "🔴";
+        default:
+          return "🟡";
+      }
+    };
+
+    return (
+      <div
+        className={`${
+          isDarkMode
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        } p-6 rounded-lg border shadow-sm`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3
+            className={`text-lg font-semibold ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            System Health
+          </h3>
+          <button
+            onClick={fetchHealthStatus}
+            disabled={loading}
+            className={`px-3 py-1 rounded-md text-xs font-medium ${
+              isDarkMode
+                ? "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+            } ${
+              loading ? "opacity-50 cursor-not-allowed" : "hover:opacity-80"
+            }`}
+          >
+            {loading ? "Checking..." : "Refresh"}
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center h-16">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+          </div>
+        ) : healthData ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span
+                className={`text-sm ${
+                  isDarkMode ? "text-gray-300" : "text-gray-600"
+                }`}
+              >
+                Status:
+              </span>
+              <div className="flex items-center space-x-2">
+                <span className="text-lg">
+                  {getStatusIcon(healthData.status)}
+                </span>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    healthData.status === "OK"
+                      ? isDarkMode
+                        ? "bg-green-900 text-green-200"
+                        : "bg-green-100 text-green-800"
+                      : isDarkMode
+                      ? "bg-red-900 text-red-200"
+                      : "bg-red-100 text-red-800"
+                  }`}
+                >
+                  {healthData.status}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span
+                className={`text-sm ${
+                  isDarkMode ? "text-gray-300" : "text-gray-600"
+                }`}
+              >
+                Server Time:
+              </span>
+              <span
+                className={`text-xs font-mono ${
+                  isDarkMode ? "text-gray-400" : "text-gray-500"
+                }`}
+              >
+                {new Date(healthData.serverTime).toLocaleString()}
+              </span>
+            </div>
+
+            {healthData.environment && (
+              <div className="flex items-center justify-between">
+                <span
+                  className={`text-sm ${
+                    isDarkMode ? "text-gray-300" : "text-gray-600"
+                  }`}
+                >
+                  Environment:
+                </span>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    healthData.environment === "production"
+                      ? isDarkMode
+                        ? "bg-blue-900 text-blue-200"
+                        : "bg-blue-100 text-blue-800"
+                      : isDarkMode
+                      ? "bg-yellow-900 text-yellow-200"
+                      : "bg-yellow-100 text-yellow-800"
+                  }`}
+                >
+                  {healthData.environment}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-16">
+            <span
+              className={`text-sm ${
+                isDarkMode ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
+              Unable to fetch health status
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
   return (
     <div
-      className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
+      className={`min-h-screen  ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
@@ -376,16 +722,6 @@ const AdminDashboard = () => {
               Welcome back! Here's what's happening with your platform.
             </p>
           </div>
-          {/* <button
-            onClick={toggleTheme}
-            className={`px-4 py-2 rounded-md border ${
-              isDarkMode
-                ? "bg-gray-800 border-gray-700 text-white hover:bg-gray-700"
-                : "bg-white border-gray-300 text-gray-900 hover:bg-gray-50"
-            }`}
-          >
-            {isDarkMode ? "☀️" : "🌙"} Toggle Theme
-          </button> */}
         </div>
 
         {/* Stats Grid */}
@@ -446,7 +782,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
           <UserActivityChart
             data={dashboardData?.trends?.userRegistrationTrend}
           />
@@ -456,9 +792,12 @@ const AdminDashboard = () => {
           />
         </div>
 
-        {/* Most Active Users */}
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-          <MostActiveUsers users={dashboardData?.mostActiveUsers} />
+        {/* Health Check and Most Active Users */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <HealthStatusCard healthData={healthStatus} loading={healthLoading} />
+          <div className="lg:col-span-2">
+            <MostActiveUsers users={dashboardData?.mostActiveUsers} />
+          </div>
         </div>
       </div>
     </div>

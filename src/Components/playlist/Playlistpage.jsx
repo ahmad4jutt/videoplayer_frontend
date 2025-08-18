@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import { getUserPlaylists } from "../../services/api";
 import { useAuth } from "../../hooks/UseAuth";
 import { useTheme } from "../../context/ThemeContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import PlaylistCard from "./PlaylistCard";
-
+import { ArrowLeft } from "lucide-react";
+import { toast } from "react-toastify";
 export default function PlaylistPage() {
+  const navigate = useNavigate();
   const { token, currentUser } = useAuth();
   const { isDarkMode } = useTheme();
   const [lists, setLists] = useState([]);
@@ -47,10 +49,9 @@ export default function PlaylistPage() {
 
   useEffect(() => {
     if (token && currentUser?._id) {
-      console.log("Fetching playlists for user:", currentUser._id);
       fetchPlaylists();
     } else {
-      console.log("Missing token or user ID:", {
+      toast.error("Missing token or user ID:", {
         token: !!token,
         userId: currentUser?._id,
       });
@@ -60,7 +61,9 @@ export default function PlaylistPage() {
   const refresh = () => {
     fetchPlaylists();
   };
-
+  const handleBack = () => {
+    navigate(-1);
+  };
   if (loading) {
     return (
       <div
@@ -98,6 +101,18 @@ export default function PlaylistPage() {
       }`}
     >
       <div className="max-w-4xl mx-auto">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleBack}
+            className={`p-2 rounded-full transition-colors duration-200 ${
+              isDarkMode
+                ? "hover:bg-gray-800 text-gray-400 hover:text-white"
+                : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <ArrowLeft size={20} />
+          </button>
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <h1

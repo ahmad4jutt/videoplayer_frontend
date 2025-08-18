@@ -18,6 +18,7 @@ import {
   PlayIcon,
   Link,
   VideoOff,
+  ArrowLeft,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -35,7 +36,8 @@ const SubscribedChannels = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [limit] = useState(12);
-  const [toggleLoading, setToggleLoading] = useState({}); // Track loading state for each channel
+  const [toggleLoading, setToggleLoading] = useState({});
+  const [openShareMenu, setOpenShareMenu] = useState(null); // Track which menu is open
 
   const { token, currentUser } = useAuth();
 
@@ -70,9 +72,9 @@ const SubscribedChannels = () => {
     fetchSubscribedChannels(1);
   }, [currentUser]);
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    fetchSubscribedChannels(page);
+  // Handle back navigation
+  const handleBack = () => {
+    navigate(-1);
   };
 
   const handleChannelClick = (channelId) => {
@@ -107,6 +109,7 @@ const SubscribedChannels = () => {
     if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
     return `${Math.floor(diffDays / 365)} years ago`;
   };
+
   const formatDuration = (second) => {
     if (!second) return "0:00";
 
@@ -115,6 +118,7 @@ const SubscribedChannels = () => {
     const secs = totalSeconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
+
   const filteredChannels = subscribedChannels.filter((channel) => {
     if (!channel.channelDetails) return false;
 
@@ -127,6 +131,20 @@ const SubscribedChannels = () => {
       userName.toLowerCase().includes(searchTermLower)
     );
   });
+
+  // Close share menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (openShareMenu && !event.target.closest(".share-menu-container")) {
+        setOpenShareMenu(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [openShareMenu]);
 
   const LoadingSpinner = () => (
     <div className="flex justify-center items-center p-12">
@@ -175,8 +193,8 @@ const SubscribedChannels = () => {
     const isToggling = toggleLoading[channelId];
     const [isHovered, setIsHovered] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
-    const [showShareMenu, setShowShareMenu] = useState(false);
     const videoRef = useRef(null);
+    const cardId = `card-${channelId}`;
 
     const handleMuteToggle = (e) => {
       e.stopPropagation();
@@ -200,13 +218,13 @@ const SubscribedChannels = () => {
         }
       }
     };
+
     const handleCopyLink = async (e) => {
       e.stopPropagation();
       const videoUrl = `${window.location.origin}/video/${recentVideo._id}`;
 
       try {
         await navigator.clipboard.writeText(videoUrl);
-        // You might want to show a toast notification here
         toast.success("Link copied to clipboard");
       } catch (error) {
         console.error("Error copying to clipboard:", error);
@@ -217,9 +235,11 @@ const SubscribedChannels = () => {
         textArea.select();
         document.execCommand("copy");
         document.body.removeChild(textArea);
+        toast.success("Link copied to clipboard");
       }
-      setShowShareMenu(false);
+      setOpenShareMenu(null);
     };
+
     const handleShare = async (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -239,16 +259,17 @@ const SubscribedChannels = () => {
         // Fallback: copy to clipboard
         try {
           await navigator.clipboard.writeText(videoUrl);
-          toast("Link copied to clipboard");
+          toast.success("Link copied to clipboard");
         } catch (error) {
           console.error("Error copying to clipboard:", error);
         }
       }
-      setShowShareMenu(false);
+      setOpenShareMenu(null);
     };
+
     const handleShareClick = (e) => {
       e.stopPropagation();
-      setShowShareMenu(!showShareMenu);
+      setOpenShareMenu(openShareMenu === cardId ? null : cardId);
     };
 
     const hasNoVideos =
@@ -257,101 +278,108 @@ const SubscribedChannels = () => {
       channel.recentVideos.length === 0;
 
     return (
-      <div
-        className={` grid grid-cols-1  rounded-xl overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer ${
-          isDarkMode
-            ? "bg-gray-900 hover:shadow-xl "
-            : "bg-white hover:shadow-xl "
-        }`}
-        onClick={() => handleChannelClick(channelId)}
-      >
+      <div>
         <div
-          className="relative h-48 overflow-hidden"
-          onMouseEnter={() => !hasNoVideos && handleVideoHover(true)}
-          onMouseLeave={() => !hasNoVideos && handleVideoHover(false)}
+          className={`rounded-xl overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer shadow-sm hover:shadow-lg ${
+            isDarkMode
+              ? "bg-gray-800 border border-gray-700"
+              : "bg-white border border-gray-200"
+          }`}
+          onClick={() => handleChannelClick(channelId)}
         >
-          {hasNoVideos ? (
-            <div
-              className={`w-full h-full flex flex-col items-center justify-center ${
-                isDarkMode ? "bg-gray-800" : "bg-gray-100"
-              }`}
-            >
-              <VideoOff
-                size={32}
-                className={`mb-2 ${
-                  isDarkMode ? "text-gray-500" : "text-gray-400"
-                }`}
-              />
-              <p
-                className={`text-sm text-center px-4 ${
-                  isDarkMode ? "text-gray-400" : "text-gray-600"
+          {/* Video/Thumbnail Section */}
+          <div
+            className="relative h-48 overflow-hidden"
+            onMouseEnter={() => !hasNoVideos && handleVideoHover(true)}
+            onMouseLeave={() => !hasNoVideos && handleVideoHover(false)}
+          >
+            {hasNoVideos ? (
+              <div
+                className={`w-full h-full flex flex-col items-center justify-center ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-50"
                 }`}
               >
-                This channel hasn't posted any videos yet
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Video thumbnail - shown when not hovered */}
-              <img
-                src={recentVideo.thumbnail.url}
-                alt={recentVideo.title}
-                className={`w-full h-full rounded-t-xl object-cover transition-all duration-300 ${
-                  isHovered ? "opacity-0" : "opacity-100"
-                }`}
-              />
+                <VideoOff
+                  size={32}
+                  className={`mb-2 ${
+                    isDarkMode ? "text-gray-500" : "text-gray-400"
+                  }`}
+                />
+                <p
+                  className={`text-sm text-center px-4 ${
+                    isDarkMode ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
+                  This channel hasn't posted any videos yet
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Video thumbnail - shown when not hovered */}
+                <img
+                  src={recentVideo.thumbnail.url}
+                  alt={recentVideo.title}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${
+                    isHovered ? "opacity-0" : "opacity-100"
+                  }`}
+                />
 
-              {/* Video player - shown on hover */}
-              <video
-                ref={videoRef}
-                src={recentVideo.videoFile.url}
-                className={`absolute inset-0 w-full h-full  object-cover transition-opacity duration-300 ${
-                  isHovered ? "opacity-100" : "opacity-0"
-                }`}
-                muted={isMuted}
-                loop
-                playsInline
-              />
-              {recentVideo.duration && (
-                <div className="absolute bottom-2 right-2">
-                  <span className="bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                    <Clock size={12} />
-                    {formatDuration(recentVideo.duration)}
-                  </span>
-                </div>
-              )}
-              {/* Play button overlay - only shown when not hovered */}
-              {!isHovered && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-colors duration-300">
-                  <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
-                    <Play size={20} className="text-gray-800 ml-1" />
+                {/* Video player - shown on hover */}
+                <video
+                  ref={videoRef}
+                  src={recentVideo.videoFile.url}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                    isHovered ? "opacity-100" : "opacity-0"
+                  }`}
+                  muted={isMuted}
+                  loop
+                  playsInline
+                />
+
+                {/* Duration badge */}
+                {recentVideo.duration && (
+                  <div className="absolute bottom-2 right-2">
+                    <span className="bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                      <Clock size={12} />
+                      {formatDuration(recentVideo.duration)}
+                    </span>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Mute button - shown when hovered and video is playing */}
-              {isHovered && (
-                <div className="absolute top-3 right-3">
-                  <button
-                    onClick={handleMuteToggle}
-                    className="w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-colors duration-200"
-                  >
-                    {isMuted ? (
-                      <VolumeX size={16} className="text-white" />
-                    ) : (
-                      <Volume2 size={16} className="text-white" />
-                    )}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+                {/* Play button overlay - only shown when not hovered */}
+                {!isHovered && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-colors duration-300">
+                    <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
+                      <Play size={20} className="text-gray-800 ml-1" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Mute button - shown when hovered and video is playing */}
+                {isHovered && (
+                  <div className="absolute top-3 right-3">
+                    <button
+                      onClick={handleMuteToggle}
+                      className="w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-colors duration-200"
+                    >
+                      {isMuted ? (
+                        <VolumeX size={16} className="text-white" />
+                      ) : (
+                        <Volume2 size={16} className="text-white" />
+                      )}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Content Section */}
         </div>
 
-        {/* Bottom Section */}
-        <div className="p-3">
+        <div className="p-4">
           <div className="flex items-start gap-3">
-            {/* Left: Channel Avatar */}
+            {/* Channel Avatar */}
             <div className="flex-shrink-0">
               <div className="relative">
                 <img
@@ -363,10 +391,9 @@ const SubscribedChannels = () => {
               </div>
             </div>
 
-            {/* Middle: Channel/Video Info Column */}
+            {/* Channel/Video Info */}
             <div className="flex-1 min-w-0">
               {hasNoVideos ? (
-                // Show channel info when no videos
                 <>
                   <h3
                     className={`text-sm font-medium line-clamp-2 mb-1 ${
@@ -384,10 +411,9 @@ const SubscribedChannels = () => {
                   </p>
                 </>
               ) : (
-                // Show video info when videos exist
                 <>
                   <h3
-                    className={`text-sm font-medium line-clamp-2 mb-1 ${
+                    className={`text-sm font-medium line-clamp-2 mb-1 cursor-pointer hover:underline ${
                       isDarkMode ? "text-white" : "text-gray-900"
                     }`}
                     onClick={(e) => handleVideoClick(recentVideo._id, e)}
@@ -402,46 +428,57 @@ const SubscribedChannels = () => {
                   >
                     {channel.channelDetails.fullName}
                   </p>
-
-                  <div className="flex items-center gap-2 text-xs">
-                    <span
-                      className={isDarkMode ? "text-gray-400" : "text-gray-600"}
-                    >
-                      {formatViewCount(recentVideo.views)} views
-                    </span>
-                    <span
-                      className={isDarkMode ? "text-gray-500" : "text-gray-400"}
-                    >
-                      •
-                    </span>
-                    <span
-                      className={isDarkMode ? "text-gray-400" : "text-gray-600"}
-                    >
-                      {formatTimeAgo(recentVideo.createdAt)}
-                    </span>
-                  </div>
+                  {!hasNoVideos && (
+                    <div className="flex items-center right-20 gap-2 text-xs mt-1">
+                      <span
+                        className={
+                          isDarkMode ? "text-gray-400" : "text-gray-600"
+                        }
+                      >
+                        {formatViewCount(recentVideo.views)} views
+                      </span>
+                      <span
+                        className={
+                          isDarkMode ? "text-gray-500" : "text-gray-400"
+                        }
+                      >
+                        •
+                      </span>
+                      <span
+                        className={
+                          isDarkMode ? "text-gray-400" : "text-gray-600"
+                        }
+                      >
+                        {formatTimeAgo(recentVideo.createdAt)}
+                      </span>
+                    </div>
+                  )}
                 </>
               )}
             </div>
 
-            {/* Right: Share Menu - only show if there are videos */}
+            {/* Share Menu - only show if there are videos */}
             {!hasNoVideos && (
-              <div className="flex-shrink-0 relative">
+              <div className="flex-shrink-0 relative share-menu-container">
                 <button
                   onClick={handleShareClick}
-                  className={`p-1 rounded-full hover:bg-opacity-10 transition-colors duration-200 ${
-                    isDarkMode
-                      ? "hover:bg-white text-gray-400 hover:text-white"
-                      : "hover:bg-gray-900 text-gray-600 hover:text-gray-900"
+                  className={`p-2 rounded-full transition-colors duration-200 ${
+                    openShareMenu === cardId
+                      ? isDarkMode
+                        ? "bg-gray-600 text-white"
+                        : "bg-gray-200 text-gray-900"
+                      : isDarkMode
+                      ? "hover:bg-gray-700 text-gray-400 hover:text-white"
+                      : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
                   }`}
                 >
                   <MoreVertical size={16} />
                 </button>
 
                 {/* Share Dropdown Menu */}
-                {showShareMenu && (
+                {openShareMenu === cardId && (
                   <div
-                    className={`absolute right-0 top-8 w-48 rounded-lg shadow-lg border z-10 ${
+                    className={`absolute right-0 top-5 w-48 rounded-lg shadow-lg border z-50 ${
                       isDarkMode
                         ? "bg-gray-800 border-gray-600"
                         : "bg-white border-gray-200"
@@ -449,10 +486,10 @@ const SubscribedChannels = () => {
                   >
                     <div className="py-2">
                       <button
-                        className={`w-full px-4 py-2 text-left text-sm hover:bg-opacity-10 transition-colors duration-200 flex items-center gap-2 ${
+                        className={`w-full px-4 py-2 text-left text-sm transition-colors duration-200 flex items-center gap-3 ${
                           isDarkMode
-                            ? "text-gray-300 hover:bg-white hover:text-white"
-                            : "text-gray-700 hover:bg-gray-700 hover:text-gray-900"
+                            ? "text-gray-300 hover:bg-gray-700"
+                            : "text-gray-700 hover:bg-gray-100"
                         }`}
                         onClick={handleShare}
                       >
@@ -461,10 +498,10 @@ const SubscribedChannels = () => {
                       </button>
 
                       <button
-                        className={`w-full px-4 py-2 text-left text-sm hover:bg-opacity-10 transition-colors duration-200 flex items-center gap-2 ${
+                        className={`w-full px-4 py-2 text-left text-sm transition-colors duration-200 flex items-center gap-3 ${
                           isDarkMode
-                            ? "text-gray-300 hover:bg-white hover:text-white"
-                            : "text-gray-700 hover:bg-gray-900 hover:text-gray-900"
+                            ? "text-gray-300 hover:bg-gray-700"
+                            : "text-gray-700 hover:bg-gray-100"
                         }`}
                         onClick={handleCopyLink}
                       >
@@ -477,49 +514,80 @@ const SubscribedChannels = () => {
               </div>
             )}
           </div>
-        </div>
 
-        {/* Close dropdown when clicking outside */}
-        {showShareMenu && (
-          <div
-            className="fixed inset-0 z-5"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowShareMenu(false);
-            }}
-          />
-        )}
+          {/* Fixed views and created at alignment */}
+        </div>
       </div>
     );
   };
 
   return (
     <div
-      className={`min-h-screen transition-colors duration-300 ${
-        isDarkMode ? "bg-gray-900" : "bg-white"
+      className={`min-h-screen transition-colors  duration-300 ${
+        isDarkMode ? "bg-gray-900" : "bg-gray-50"
       }`}
     >
-      <div className="">
-        <div
-          className={` overflow-hidden transition-colors duration-300 ${
-            isDarkMode ? "bg-gray-900 " : "bg-white "
-          } `}
-        >
-          {/* Content */}
-          <div className="p-8">
-            {loading ? (
-              <LoadingSpinner />
-            ) : filteredChannels.length === 0 ? (
-              <EmptyState />
-            ) : (
-              <div className="grid gap-6 grid-cols-1  md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
-                {filteredChannels.map((channel) => (
-                  <ChannelCard key={channel._id} channel={channel} />
-                ))}
-              </div>
-            )}
+      {/* Header */}
+      <div
+        className={`sticky top-0 z-40 border-b ${
+          isDarkMode
+            ? "bg-transparent backdrop-blur border-gray-700"
+            : "bg-transparent backdrop-blur border-gray-200"
+        }`}
+      >
+        <div className="px-1 py-1">
+          <div className="flex items-center  top-1 lg:justify-between gap-6 lg:gap-0 lg:mx-4 ">
+            {/* Left side - Back button and title */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleBack}
+                className={`p-2 rounded-full transition-colors duration-200 ${
+                  isDarkMode
+                    ? "hover:bg-gray-800 text-gray-400 hover:text-white"
+                    : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <ArrowLeft size={20} />
+              </button>
+            </div>
+
+            {/* Right side - Search */}
+            <div className="relative">
+              <Search
+                size={16}
+                className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-500"
+                }`}
+              />
+              <input
+                type="text"
+                placeholder="Search channels..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`pl-10 pr-4 py-2 w-64 rounded-lg border-b transition-colors duration-200 ${
+                  isDarkMode
+                    ? "bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-gray-500"
+                    : "bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-gray-400"
+                } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
+              />
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="px-6 py-6">
+        {loading ? (
+          <LoadingSpinner />
+        ) : filteredChannels.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
+            {filteredChannels.map((channel) => (
+              <ChannelCard key={channel._id} channel={channel} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

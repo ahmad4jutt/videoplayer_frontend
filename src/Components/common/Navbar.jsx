@@ -20,7 +20,6 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
   //safety check
   const authContext = useAuth();
   if (!authContext) {
-    console.log("Navbar must be used in Authprovider");
     return null;
   }
 
@@ -94,9 +93,7 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
       await logout();
       clearSearch(); // Clear search on logout
       navigate("/login");
-    } catch (error) {
-      console.log("Logout failed :", error);
-    }
+    } catch (error) {}
   };
 
   // Handle logo click to clear search and go home
@@ -121,7 +118,6 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
 
   return (
     <>
-      {/* Fixed Navbar */}
       <nav
         className={`fixed top-0 left-0 right-0 z-50 ${
           isDarkMode ? "bg-gray-800" : "bg-white"
@@ -129,9 +125,7 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
       >
         <div className="max-w-7xl mx-auto ">
           <div className="flex items-center justify-between h-16">
-            {/* Left side - Burger menu and Logo */}
             <div className="flex items-center">
-              {/* Burger Menu Button */}
               <button
                 onClick={onSidebarToggle}
                 className={`mr-1 ${
@@ -202,8 +196,8 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
                         ? "bg-gray-700 border-gray-600 text-gray-500 cursor-not-allowed"
                         : "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
                       : isDarkMode
-                      ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-700"
-                      : "bg-blue-600 border-blue-600 text-white hover:bg-blue-700"
+                      ? "bg-gray-600 border-gray-600 text-white hover:bg-gray-700"
+                      : "bg-gray-600 border-gray-600 text-white hover:bg-gray-700"
                   }`}
                 >
                   {isSearching ? (
@@ -285,13 +279,6 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
                           src={userData.avatar}
                           alt="Profile"
                           className="h-8 w-8 rounded-full object-cover"
-                          onError={(e) => {
-                            console.log(
-                              "Image failed to load:",
-                              userData.avatar
-                            );
-                            e.target.style.display = "none";
-                          }}
                         />
                       ) : (
                         <div
@@ -396,7 +383,7 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
                     isDarkMode
                       ? "border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400"
                       : "border-gray-300 bg-white text-gray-900 placeholder-gray-500"
-                  } rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  } rounded-l-md focus:outline-none `}
                   placeholder="Search videos..."
                   autoFocus
                 />
@@ -417,7 +404,7 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
                       ? isDarkMode
                         ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                         : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
+                      : "bg-gray-600 text-white hover:bg-gray-700"
                   }`}
                 >
                   {isSearching ? (

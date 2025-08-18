@@ -19,7 +19,7 @@ import VideoDetailpage from "./Components/video/VideoDetailpage";
 import ChannelVideoPage from "./Components/video/ChannelVideoPage";
 import UserChannelPage from "./Components/video/UserChannelPage";
 import { SearchProvider } from "./context/SearchContext";
-import ShortsPage from "./Components/video/ShortsPage";
+
 //playlist
 import CreatePlaylist from "./Components/playlist/CreatePlaylist";
 import Playlistpage from "./Components/playlist/Playlistpage";

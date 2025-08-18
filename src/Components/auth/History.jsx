@@ -12,6 +12,7 @@ import {
   Grid,
   List,
   ChevronDown,
+  ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../../hooks/UseAuth";
 import { useNavigate } from "react-router-dom";
@@ -95,7 +96,9 @@ const History = () => {
     const secs = totalSeconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
-
+  const handleBack = () => {
+    navigate(-1);
+  };
   const formatViews = (views) => {
     if (views >= 1000000) {
       return `${(views / 1000000).toFixed(1)}M`;
@@ -331,18 +334,30 @@ const History = () => {
           : "bg-gradient-to-br from-gray-50 via-white to-gray-100"
       }`}
     >
+      <div className="flex items-center gap-4">
+        <button
+          onClick={handleBack}
+          className={`p-2 rounded-full transition-colors duration-200 ${
+            isDarkMode
+              ? "hover:bg-gray-800 text-gray-400 hover:text-white"
+              : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
+          }`}
+        >
+          <ArrowLeft size={20} />
+        </button>
+      </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 bg-gradient-to-r from-gray-400 to-gray-600 rounded-xl flex items-center justify-center shadow-lg">
                 <Clock className="text-white" size={24} />
               </div>
               <div>
                 <h1
                   className={` ${
-                    isDarkMode ? "text-white" : "text-black"
+                    isDarkMode ? "text-gray-100" : "text-gray-800"
                   } text-3xl sm:text-4xl font-bold  tracking-tight`}
                 >
                   Watch History
@@ -404,7 +419,7 @@ const History = () => {
                   onClick={() => setViewMode("grid")}
                   className={`p-3 rounded-lg transition-all duration-200 ${
                     viewMode === "grid"
-                      ? "bg-blue-500 text-white shadow-lg"
+                      ? "bg-gray-600 text-white shadow-lg"
                       : isDarkMode
                       ? "text-gray-400 hover:text-gray-300"
                       : "text-gray-500 hover:text-gray-700"
@@ -416,7 +431,7 @@ const History = () => {
                   onClick={() => setViewMode("list")}
                   className={`p-3 rounded-lg transition-all duration-200 ${
                     viewMode === "list"
-                      ? "bg-blue-500 text-white shadow-lg"
+                      ? "bg-gray-500 text-white shadow-lg"
                       : isDarkMode
                       ? "text-gray-400 hover:text-gray-300"
                       : "text-gray-500 hover:text-gray-700"
@@ -463,21 +478,21 @@ const History = () => {
           <div
             className={`${
               viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2  lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4   gap-4 "
                 : "space-y-4"
             }`}
           >
             {filteredHistory.map((video) => (
               <div
                 key={video._id}
-                className={`group relative backdrop-blur-sm border transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl ${
+                className={`group relative  backdrop-blur-sm border transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl ${
                   isDarkMode
                     ? "bg-gray-800/30 hover:bg-gray-800/50 border-gray-700/30 hover:border-gray-600/50"
                     : "bg-white/30 hover:bg-white/50 border-gray-200/30 hover:border-gray-300/50"
                 } ${
                   viewMode === "grid"
-                    ? "rounded-2xl overflow-hidden"
-                    : "rounded-xl p-4 flex gap-4"
+                    ? "sm:rounded-none lg:rounded-2xl  overflow-hidden "
+                    : " sm:rounded-none lg:rounded-xl p-4 flex gap-4"
                 }`}
               >
                 {/* Remove button */}
@@ -498,16 +513,13 @@ const History = () => {
                   onClick={() => handleVideoClick(video._id)}
                 >
                   <img
-                    src={video.thumbnail?.url || "/api/placeholder/400/300"}
+                    src={video.thumbnail?.url}
                     alt={video.title}
                     className={`object-cover bg-gray-700 transition-transform duration-300 group-hover:scale-105 ${
                       viewMode === "grid"
                         ? "w-full h-48"
-                        : "w-full sm:h-40 lg:h-full rounded-lg"
+                        : "w-full sm:h-30 lg:h-full rounded-lg"
                     }`}
-                    onError={(e) => {
-                      e.target.src = "/api/placeholder/400/300";
-                    }}
                   />
 
                   {/* Play overlay */}

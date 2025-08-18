@@ -22,7 +22,7 @@ import {
 import { useAuth } from "../hooks/UseAuth";
 import {
   getAllAdmins,
-  adminDeleteUser,
+  adminDeleteAdmin,
   getAdminById,
   toggleAdminStatus,
   adminRegister,
@@ -36,6 +36,7 @@ const ManageAdmins = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchLoading, setSearchLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({});
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -68,7 +69,17 @@ const ManageAdmins = () => {
     reason: "",
     isDeactivating: false,
   });
+  useEffect(() => {
+    const searchTimer = setTimeout(() => {
+      if (searchTerm !== undefined) {
+        // Only search when searchTerm changes
+        setCurrentPage(1); // Reset to first page when searching
+        fetchAdmins();
+      }
+    }, 100);
 
+    return () => clearTimeout(searchTimer);
+  }, [searchTerm]);
   useEffect(() => {
     fetchAdmins();
   }, [currentPage, searchTerm, statusFilter]);
@@ -80,9 +91,15 @@ const ManageAdmins = () => {
       const params = {
         page: currentPage,
         limit: 10,
-        search: searchTerm,
-        status: statusFilter === "all" ? undefined : statusFilter,
       };
+      if (searchTerm && searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+
+      // Only add status if it's not 'all'
+      if (statusFilter && statusFilter !== "all") {
+        params.status = statusFilter;
+      }
 
       const response = await getAllAdmins(adminToken, params);
 
@@ -182,7 +199,7 @@ const ManageAdmins = () => {
     }
   };
 
-  const handleDeleteUser = async () => {
+  const handleDeleteAdmin = async () => {
     if (!deleteForm.confirmDelete) {
       setError("Please confirm deletion");
       return;
@@ -192,17 +209,20 @@ const ManageAdmins = () => {
       setActionLoading(true);
       setError("");
 
-      await adminDeleteUser(adminToken, selectedAdmin._id, deleteForm);
+      await adminDeleteAdmin(adminToken, selectedAdmin._id, {
+        confirmDelete: deleteForm.confirmDelete,
+        reason: deleteForm.reason,
+      });
 
       setShowDeleteModal(false);
       setSelectedAdmin(null);
       setDeleteForm({ reason: "", confirmDelete: false });
 
       await fetchAdmins();
-      toast("User deleted successfully!");
+      toast.success("Admin deleted successfully!");
     } catch (error) {
-      console.error("Error deleting user:", error);
-      setError(error.response?.data?.message || "Failed to delete user");
+      console.error("Error deleting admin:", error);
+      setError(error.response?.data?.message || "Failed to delete admin");
     } finally {
       setActionLoading(false);
     }
@@ -229,7 +249,14 @@ const ManageAdmins = () => {
       setDetailsLoading(false);
     }
   };
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setSearchLoading(true);
 
+    // Clear search loading after a delay
+    setTimeout(() => setSearchLoading(false), 600);
+  };
   const themeClasses = {
     container: isDarkMode
       ? "bg-gray-900 text-white"
@@ -299,12 +326,17 @@ const ManageAdmins = () => {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              {searchLoading && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              )}
               <input
                 type="text"
-                placeholder="Search admins..."
+                placeholder="Search admins by name, username, or email..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full pl-10 pr-4 py-2 rounded-lg border ${themeClasses.input} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                onChange={handleSearchChange}
+                className={`w-full pl-10 pr-10 py-2 rounded-lg border ${themeClasses.input} focus:outline-none focus:ring-2 focus:ring-blue-500`}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -466,7 +498,7 @@ const ManageAdmins = () => {
                                 }}
                                 disabled={actionLoading}
                                 className={`p-2 rounded-lg transition-colors ${themeClasses.button.danger} text-white`}
-                                title="Delete User"
+                                title="Delete Admin"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -478,50 +510,6 @@ const ManageAdmins = () => {
                   </tbody>
                 </table>
               </div>
-
-              {/* Pagination */}
-              {pagination.totalPages > 1 && (
-                <div
-                  className={`flex items-center justify-between p-4 border-t ${
-                    isDarkMode ? "border-gray-700" : "border-gray-200"
-                  }`}
-                >
-                  <p
-                    className={`text-sm ${
-                      isDarkMode ? "text-gray-400" : "text-gray-600"
-                    }`}
-                  >
-                    Showing {(currentPage - 1) * 10 + 1} to{" "}
-                    {Math.min(currentPage * 10, pagination.totalAdmins)} of{" "}
-                    {pagination.totalAdmins} admins
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(1, prev - 1))
-                      }
-                      disabled={!pagination.hasPrevPage}
-                      className={`p-2 rounded-lg ${themeClasses.button.secondary} disabled:opacity-50`}
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <span className="px-3 py-2 text-sm">
-                      Page {currentPage} of {pagination.totalPages}
-                    </span>
-                    <button
-                      onClick={() =>
-                        setCurrentPage((prev) =>
-                          Math.min(pagination.totalPages, prev + 1)
-                        )
-                      }
-                      disabled={!pagination.hasNextPage}
-                      className={`p-2 rounded-lg ${themeClasses.button.secondary} disabled:opacity-50`}
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>
@@ -968,11 +956,13 @@ const ManageAdmins = () => {
             >
               <div className="flex items-center gap-3 mb-4">
                 <AlertTriangle className="w-6 h-6 text-red-500" />
-                <h2 className="text-xl font-bold">Delete User Account</h2>
+                <h2 className="text-xl font-bold">Delete Admin Account</h2>{" "}
+                {/* Updated title */}
               </div>
               <div className="mb-4">
                 <p className="text-sm mb-2">
-                  You are about to permanently delete the user account for:
+                  You are about to permanently delete the admin account for:{" "}
+                  {/* Updated text */}
                 </p>
                 <div
                   className={`p-3 rounded-lg ${
@@ -1001,7 +991,7 @@ const ManageAdmins = () => {
                     }
                     className={`w-full px-3 py-2 rounded-lg border ${themeClasses.input} focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     rows="3"
-                    placeholder="Enter reason for account deletion..."
+                    placeholder="Enter reason for admin account deletion..." // Updated placeholder
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -1035,11 +1025,12 @@ const ManageAdmins = () => {
                     Cancel
                   </button>
                   <button
-                    onClick={handleDeleteUser}
+                    onClick={handleDeleteAdmin} // Updated function call
                     disabled={actionLoading || !deleteForm.confirmDelete}
                     className={`flex-1 px-4 py-2 rounded-lg text-white ${themeClasses.button.danger} disabled:opacity-50`}
                   >
-                    {actionLoading ? "Deleting..." : "Delete User"}
+                    {actionLoading ? "Deleting..." : "Delete Admin"}{" "}
+                    {/* Updated text */}
                   </button>
                 </div>
               </div>

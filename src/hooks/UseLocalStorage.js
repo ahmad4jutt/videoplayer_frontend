@@ -21,11 +21,9 @@ export function useLocalStorage(key, initialValue) {
         setStored(valueToStore);
         // Update localStorage
         if (valueToStore === null || valueToStore === undefined) {
-          console.log(`Removing localStorage key: ${key}`);
           window.localStorage.removeItem(key);
         } else {
           const stringValue = JSON.stringify(valueToStore);
-          console.log(`Setting localStorage key: ${key} = ${stringValue}`);
           window.localStorage.setItem(key, stringValue);
         }
       } catch (error) {
@@ -41,7 +39,6 @@ export function useLocalStorage(key, initialValue) {
       if (e.key === key) {
         try {
           const newValue = e.newValue ? JSON.parse(e.newValue) : initialValue;
-          console.log(`Storage changed for key ${key}:`, newValue);
           setStored(newValue);
         } catch (error) {
           console.error(

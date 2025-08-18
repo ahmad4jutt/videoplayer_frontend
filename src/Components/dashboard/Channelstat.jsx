@@ -25,6 +25,7 @@ export default function ChannelStats() {
     totalVideos: 0,
     totalViews: 0,
     totalLikes: 0,
+    recentSubscribers: [],
   });
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +33,6 @@ export default function ChannelStats() {
     setLoading(true);
     getChannelStats(token)
       .then((res) => {
-        console.log("📊 Channel Stats Response:", res.data);
         setStats(res.data?.data || {});
       })
       .catch((err) => {
@@ -42,6 +42,53 @@ export default function ChannelStats() {
         setLoading(false);
       });
   }, [token]);
+
+  // Function to generate trend data from subscriber timestamps
+  const generateTrendData = () => {
+    if (!stats.recentSubscribers || stats.recentSubscribers.length === 0) {
+      return [];
+    }
+
+    // Get current date and last 6 months
+    const now = new Date();
+    const months = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        month: date.toLocaleDateString("en-US", { month: "short" }),
+        year: date.getFullYear(),
+        monthIndex: date.getMonth(),
+        subscribers: 0,
+      });
+    }
+
+    // Count subscribers by month
+    stats.recentSubscribers.forEach((sub) => {
+      const subDate = new Date(sub.createdAt);
+      const subMonth = subDate.getMonth();
+      const subYear = subDate.getFullYear();
+
+      const monthData = months.find(
+        (m) => m.monthIndex === subMonth && m.year === subYear
+      );
+
+      if (monthData) {
+        monthData.subscribers++;
+      }
+    });
+
+    // Calculate cumulative subscribers for trend
+    let cumulative = stats.totalSubscribers - stats.recentSubscribers.length;
+
+    return months.map((month) => {
+      cumulative += month.subscribers;
+      return {
+        month: month.month,
+        subscribers: cumulative,
+      };
+    });
+  };
 
   if (loading) {
     return (
@@ -78,14 +125,8 @@ export default function ChannelStats() {
     { name: "Likes", value: stats.totalLikes },
   ];
 
-  // Mock time series data for trend chart
-  const trendData = [
-    { month: "Jan", views: Math.floor(stats.totalViews * 0.6) },
-    { month: "Feb", views: Math.floor(stats.totalViews * 0.7) },
-    { month: "Mar", views: Math.floor(stats.totalViews * 0.8) },
-    { month: "Apr", views: Math.floor(stats.totalViews * 0.9) },
-    { month: "May", views: stats.totalViews },
-  ];
+  // Generate real trend data
+  const trendData = generateTrendData();
 
   const statCards = [
     {
@@ -243,39 +284,49 @@ export default function ChannelStats() {
               isDarkMode ? "text-white" : "text-gray-900"
             }`}
           >
-            Views Trend
+            Subscriber Growth
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <AreaChart data={trendData}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={isDarkMode ? "#374151" : "#f1f5f9"}
-              />
-              <XAxis
-                dataKey="month"
-                tick={{
-                  fontSize: 12,
-                  fill: isDarkMode ? "#9CA3AF" : "#6B7280",
-                }}
-                axisLine={{ stroke: isDarkMode ? "#4B5563" : "#E5E7EB" }}
-              />
-              <YAxis
-                tick={{
-                  fontSize: 12,
-                  fill: isDarkMode ? "#9CA3AF" : "#6B7280",
-                }}
-                axisLine={{ stroke: isDarkMode ? "#4B5563" : "#E5E7EB" }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="views"
-                stroke={isDarkMode ? "#60A5FA" : "#3b82f6"}
-                fill={isDarkMode ? "#60A5FA" : "#3b82f6"}
-                fillOpacity={isDarkMode ? 0.2 : 0.1}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {trendData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={trendData}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={isDarkMode ? "#374151" : "#f1f5f9"}
+                />
+                <XAxis
+                  dataKey="month"
+                  tick={{
+                    fontSize: 12,
+                    fill: isDarkMode ? "#9CA3AF" : "#6B7280",
+                  }}
+                  axisLine={{ stroke: isDarkMode ? "#4B5563" : "#E5E7EB" }}
+                />
+                <YAxis
+                  tick={{
+                    fontSize: 12,
+                    fill: isDarkMode ? "#9CA3AF" : "#6B7280",
+                  }}
+                  axisLine={{ stroke: isDarkMode ? "#4B5563" : "#E5E7EB" }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="subscribers"
+                  stroke={isDarkMode ? "#10B981" : "#059669"}
+                  fill={isDarkMode ? "#10B981" : "#059669"}
+                  fillOpacity={isDarkMode ? 0.2 : 0.1}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div
+              className={`flex items-center justify-center h-64 ${
+                isDarkMode ? "text-gray-400" : "text-gray-500"
+              }`}
+            >
+              <p>No subscriber data available for trend analysis</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

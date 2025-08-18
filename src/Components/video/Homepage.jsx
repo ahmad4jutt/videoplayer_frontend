@@ -630,7 +630,7 @@ const Homepage = () => {
                         : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm hover:shadow-md"
                     }`}
                   >
-                    {category} ({count})
+                    {category}
                   </button>
                 );
               })}
@@ -661,7 +661,6 @@ const Homepage = () => {
     );
   }
 
-  // Main content with videos (maintenance banner shows at top, videos display below)
   return (
     <div
       className={`min-h-screen ${

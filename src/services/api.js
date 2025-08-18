@@ -176,11 +176,39 @@ export const adminRegister = (token, data) =>
   });
 
 // Get all admins (Super Admin only)
-export const getAllAdmins = (token) =>
-  axios.get(`${ADMIN_BASE_URL}/list`, {
+export const getAllAdmins = (token, params = {}) => {
+  const queryParams = new URLSearchParams();
+
+  // Add optional query parameters
+  if (params.page) queryParams.append("page", params.page);
+  if (params.limit) queryParams.append("limit", params.limit);
+  if (params.search) queryParams.append("search", params.search);
+  if (params.status && params.status !== "all")
+    queryParams.append("status", params.status);
+  if (params.sortBy) queryParams.append("sortBy", params.sortBy);
+  if (params.sortOrder) queryParams.append("sortOrder", params.sortOrder);
+
+  const queryString = queryParams.toString();
+  const url = `${ADMIN_BASE_URL}/list${queryString ? `?${queryString}` : ""}`;
+
+  return axios.get(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
+};
+export const adminDeleteAdmin = (token, adminId, { confirmDelete, reason }) => {
+  const deletePayload = {
+    confirmDelete,
+    ...(reason && { reason }), // Only include reason if provided
+  };
 
+  return axios.delete(`${ADMIN_BASE_URL}/${adminId}/delete`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    data: deletePayload,
+  });
+};
 // Get admin by ID (Super Admin only)
 export const getAdminById = (token, adminId) =>
   axios.get(`${ADMIN_BASE_URL}/profile/${adminId}`, {
@@ -362,10 +390,7 @@ export const getUserChannelVideos = (token, userId) =>
   axios.get(`${VIDEO_BASE_URL}/channel/${userId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-// export const getAllVideos = (token, videoId) =>
-//   axios.get(`${VIDEO_BASE_URL}`, {
-//     headers: { Authorization: `Bearer ${token}` },
-//   });
+
 export const getAllVideos = (token, params = {}) => {
   const queryParams = new URLSearchParams();
 

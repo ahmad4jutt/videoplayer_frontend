@@ -37,7 +37,7 @@ const HelpPage = () => {
     { id: "account", name: "Account & Profile", icon: User },
     { id: "uploading", name: "Uploading Videos", icon: Upload },
     { id: "watching", name: "Watching Videos", icon: Eye },
-    { id: "community", name: "Community Features", icon: Users },
+
     { id: "privacy", name: "Privacy & Safety", icon: Shield },
     { id: "mobile", name: "Mobile App", icon: Smartphone },
     { id: "troubleshooting", name: "Troubleshooting", icon: Settings },
@@ -88,8 +88,7 @@ Your username will be your unique identifier on Vidzio, so choose something memo
 
 • **Profile Picture**: Upload a clear, high-quality image (max 5MB)
 • **Cover Image**: Add a banner to personalize your channel (max 10MB)
-• **Bio**: Write a compelling description about yourself or your content
-• **Social Links**: Connect your other social media accounts
+
 • **Display Name**: This appears on your videos and comments
 
 To edit your profile, go to Settings → Profile Settings.`,
@@ -111,11 +110,9 @@ If you suspect your account has been compromised, change your password immediate
         title: "Privacy Settings",
         content: `Control who can see your content and interact with you:
 
-• **Profile Visibility**: Make your profile public or private
+
 • **Video Privacy**: Set default privacy for your uploads
-• **Comment Settings**: Control who can comment on your videos
-• **Following**: Manage who can follow you
-• **Email Notifications**: Choose what notifications you receive
+
 
 Access these settings from your account dashboard.`,
       },
@@ -178,7 +175,7 @@ You'll receive a notification when processing is complete.`,
 **Trending**: Popular videos across the platform
 **Categories**: Browse videos by topic or genre
 **Search**: Use keywords to find specific content
-**Following**: See latest videos from creators you follow
+**Following**: See latest videos from creators you subscribe
 
 **Discovery Tips:**
 • Like videos you enjoy to improve recommendations
@@ -200,8 +197,7 @@ You'll receive a notification when processing is complete.`,
 **Keyboard Shortcuts:**
 • Spacebar: Play/Pause
 • Arrow Keys: Skip forward/backward
-• M: Mute/Unmute
-• F: Full screen`,
+`,
       },
       {
         title: "Engagement Features",
@@ -217,7 +213,7 @@ You'll receive a notification when processing is complete.`,
 • Be respectful in comments
 • Provide constructive feedback
 • Avoid spam or self-promotion
-• Report inappropriate content`,
+`,
       },
     ],
     community: [
@@ -266,10 +262,9 @@ You'll receive a notification when processing is complete.`,
 
 **Managing Comments (for creators):**
 • Moderate comments on your videos
-• Pin important comments
+
 • Heart comments you appreciate
-• Hide or remove inappropriate content
-• Block users who violate guidelines`,
+`,
       },
     ],
     privacy: [
@@ -295,11 +290,7 @@ You'll receive a notification when processing is complete.`,
         title: "Reporting & Safety",
         content: `Report content that violates our guidelines:
 
-**How to Report:**
-• Click the flag icon on videos or comments
-• Select the appropriate reason
-• Provide additional details if necessary
-• Submit the report for review
+
 
 **What We Review:**
 • Copyright violations
@@ -464,15 +455,7 @@ Our moderation team reviews all reports within 24-48 hours.`,
       >
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              <div
-                className={`${
-                  isDarkMode ? "bg-indigo-900" : "bg-indigo-100"
-                } p-3 rounded-full`}
-              >
-                <HelpCircle className="h-8 w-8 text-indigo-600" />
-              </div>
-            </div>
+            <div className="flex items-center justify-center mb-4"></div>
             <h1
               className={`text-4xl font-bold ${
                 isDarkMode ? "text-white" : "text-gray-900"
@@ -488,28 +471,6 @@ Our moderation team reviews all reports within 24-48 hours.`,
               Find answers to your questions and learn how to make the most of
               Vidzio
             </p>
-          </div>
-
-          {/* Search Bar */}
-          <div className="max-w-2xl mx-auto mt-8">
-            <div className="relative">
-              <Search
-                className={`absolute left-4 top-1/2 transform -translate-y-1/2 ${
-                  isDarkMode ? "text-gray-400" : "text-gray-400"
-                } h-5 w-5`}
-              />
-              <input
-                type="text"
-                placeholder="Search help articles..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-12 pr-4 py-4 text-lg border ${
-                  isDarkMode
-                    ? "border-gray-600 bg-gray-700 text-white placeholder-gray-400"
-                    : "border-gray-300 bg-white text-gray-900"
-                } rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500`}
-              />
-            </div>
           </div>
         </div>
       </div>
@@ -675,7 +636,7 @@ Our moderation team reviews all reports within 24-48 hours.`,
 
             {/* Contact Support */}
             <div
-              className={`mt-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-8 text-white`}
+              className={`mt-8 bg-gradient-to-r from-gray-500 via-gray-700 to-gray-950 rounded-xl p-8 text-white`}
             >
               <div className="text-center">
                 <Mail className="h-12 w-12 mx-auto mb-4 opacity-90" />
@@ -691,77 +652,7 @@ Our moderation team reviews all reports within 24-48 hours.`,
                   >
                     Contact Support
                   </button>
-                  <button className="border border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-indigo-600 transition-colors">
-                    Community Forum
-                  </button>
                 </div>
-              </div>
-            </div>
-
-            {/* Quick Links */}
-            <div className="mt-8 grid md:grid-cols-3 gap-6">
-              <div
-                className={`${
-                  isDarkMode ? "bg-gray-800" : "bg-white"
-                } rounded-xl p-6 shadow-sm text-center`}
-              >
-                <Book className="h-8 w-8 text-indigo-600 mx-auto mb-3" />
-                <h4
-                  className={`font-semibold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  } mb-2`}
-                >
-                  User Guide
-                </h4>
-                <p
-                  className={`text-sm ${
-                    isDarkMode ? "text-gray-400" : "text-gray-600"
-                  }`}
-                >
-                  Complete guide to using Vidzio
-                </p>
-              </div>
-              <div
-                className={`${
-                  isDarkMode ? "bg-gray-800" : "bg-white"
-                } rounded-xl p-6 shadow-sm text-center`}
-              >
-                <Video className="h-8 w-8 text-indigo-600 mx-auto mb-3" />
-                <h4
-                  className={`font-semibold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  } mb-2`}
-                >
-                  Video Tutorials
-                </h4>
-                <p
-                  className={`text-sm ${
-                    isDarkMode ? "text-gray-400" : "text-gray-600"
-                  }`}
-                >
-                  Learn with step-by-step videos
-                </p>
-              </div>
-              <div
-                className={`${
-                  isDarkMode ? "bg-gray-800" : "bg-white"
-                } rounded-xl p-6 shadow-sm text-center`}
-              >
-                <Globe className="h-8 w-8 text-indigo-600 mx-auto mb-3" />
-                <h4
-                  className={`font-semibold ${
-                    isDarkMode ? "text-white" : "text-gray-900"
-                  } mb-2`}
-                >
-                  Community
-                </h4>
-                <p
-                  className={`text-sm ${
-                    isDarkMode ? "text-gray-400" : "text-gray-600"
-                  }`}
-                >
-                  Connect with other users
-                </p>
               </div>
             </div>
           </div>

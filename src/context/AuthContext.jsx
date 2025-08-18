@@ -152,14 +152,12 @@ export const AuthProvider = ({ children }) => {
   // User login function - UPDATED to handle account deactivation
   const login = async (credentials) => {
     if (loginInprogress) {
-      console.log("Login already in progress, skipping...");
       return;
     }
 
     try {
       setLoginInProgress(true);
       setLoading(true);
-      console.log("AuthContext: starting login...");
 
       const response = await loginUser(credentials);
 
@@ -183,7 +181,6 @@ export const AuthProvider = ({ children }) => {
         throw new Error(response.data?.message || "Login failed");
       }
     } catch (error) {
-      console.log("Login error in authProvider:", error);
       setLoading(false); // Make sure to reset loading on error
 
       // Check if it's an account deactivation error (403)
@@ -232,14 +229,12 @@ export const AuthProvider = ({ children }) => {
   // Admin login function
   const loginAdmin = async (credentials) => {
     if (adminLoginInProgress) {
-      console.log("Admin login already in progress, skipping...");
       return;
     }
 
     try {
       setAdminLoginInProgress(true);
       setAdminLoading(true);
-      console.log("AuthContext: starting admin login...");
 
       const response = await adminLogin(credentials);
 
@@ -253,7 +248,6 @@ export const AuthProvider = ({ children }) => {
 
         // Store admin token
         setAdminToken(receivedToken);
-        console.log("Admin login successful");
 
         return response;
       } else {
@@ -261,7 +255,6 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Login failed - invalid response format");
       }
     } catch (error) {
-      console.log("Admin login error in authProvider:", error);
       setAdminLoading(false);
 
       // If it's a deactivation error (403), let the component handle it
@@ -283,13 +276,11 @@ export const AuthProvider = ({ children }) => {
   // Admin register function
   const registerAdmin = async (adminData, authToken = null) => {
     if (adminRegisterInProgress) {
-      console.log("Admin registration already in progress, skipping...");
       return;
     }
 
     try {
       setAdminRegisterInProgress(true);
-      console.log("AuthContext: starting admin registration...");
 
       // Use provided token or current admin token
       const tokenToUse = authToken || adminToken;
@@ -300,10 +291,8 @@ export const AuthProvider = ({ children }) => {
 
       const response = await adminRegister(tokenToUse, adminData);
 
-      console.log("Admin registration successful");
       return response;
     } catch (error) {
-      console.log("Admin registration error in authProvider:", error);
       throw error;
     } finally {
       setAdminRegisterInProgress(false);
@@ -313,20 +302,16 @@ export const AuthProvider = ({ children }) => {
   // User password reset function
   const handleResetPassword = async (resetToken, newPassword) => {
     if (resetPasswordInProgress) {
-      console.log("Reset password already in progress, skipping...");
       return;
     }
 
     try {
       setResetPasswordInProgress(true);
-      console.log("AuthContext: starting password reset...");
 
       const response = await resetPassword(resetToken, newPassword);
 
-      console.log("Password reset successful");
       return response;
     } catch (error) {
-      console.log("Reset password error in authProvider:", error);
       if (error.response?.status === 400) {
         // Check if it's a validation error with structured error format
         if (

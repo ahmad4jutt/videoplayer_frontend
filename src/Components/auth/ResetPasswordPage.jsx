@@ -9,6 +9,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "../../hooks/UseAuth";
+import { toast } from "react-toastify";
 const ResetPasswordPage = () => {
   const token = window.location.pathname.split("/").pop();
   const { resetPassword, resetPasswordInProgress } = useAuth();
@@ -61,14 +62,6 @@ const ResetPasswordPage = () => {
     setMessage("");
 
     try {
-      // Debug logging
-      console.log("Reset password request:", {
-        token: token,
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
-        url: `/api/v1/users/reset-password/${token}`,
-      });
-
       // Call the context's reset password function
       await resetPassword(token, formData.password);
 
@@ -80,6 +73,7 @@ const ResetPasswordPage = () => {
       // Redirect to login after 3 seconds
       setTimeout(() => {
         navigate("/login", { replace: true });
+        toast.success("Reset Successfully");
       }, 3000);
     } catch (error) {
       console.error("Reset password error:", error);

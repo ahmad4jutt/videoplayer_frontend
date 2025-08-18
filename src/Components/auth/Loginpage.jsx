@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import AccountLockoutTimer from "./AccountLockoutTimer ";
+import { toast } from "react-toastify";
 const Loginpage = () => {
   const { login, currentUser, loading } = useAuth();
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -110,7 +111,6 @@ const Loginpage = () => {
     e.preventDefault();
 
     if (formLoading || loginInProgress.current) {
-      console.log("login already in progress, skipping...");
       return;
     }
 
@@ -127,13 +127,9 @@ const Loginpage = () => {
     setMessage("");
 
     try {
-      console.log("start login progress");
       const response = await login(formData);
-      const receivedToken = response.data.data.accessToken;
-      console.log("Received token:", receivedToken);
-      console.log("Login API response:", response.data);
 
-      setMessage("Login Successfully ");
+      toast.success("Login Successfully ");
 
       // Reset lockout state on successful login
       setAccountLockout({
@@ -174,11 +170,6 @@ const Loginpage = () => {
           const timeRemaining =
             errorData?.timeRemaining || errorData?.data?.timeRemaining || 0;
 
-          console.log("Setting lockout state:", {
-            lockoutExpiry,
-            timeRemaining,
-          });
-
           setAccountLockout({
             isLocked: true,
             lockoutExpiry: lockoutExpiry,
@@ -192,8 +183,6 @@ const Loginpage = () => {
           const lockoutExpiry = new Date(
             Date.now() + lockoutDuration
           ).toISOString();
-
-          console.log("Creating fallback lockout:", lockoutExpiry);
 
           setAccountLockout({
             isLocked: true,
@@ -253,11 +242,6 @@ const Loginpage = () => {
             const lockoutExpiry = new Date(
               Date.now() + lockoutDuration
             ).toISOString();
-
-            console.log(
-              "Max attempts reached, setting lockout:",
-              lockoutExpiry
-            );
 
             setAccountLockout({
               isLocked: true,

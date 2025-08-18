@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useTheme } from "../context/ThemeContext";
-import { getSystemAnalytics, getAdminDashboard } from "../services/api";
 import {
   Users,
   Video,
@@ -32,7 +30,9 @@ import {
   Area,
   ComposedChart,
 } from "recharts";
+import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../hooks/UseAuth";
+import { getAdminDashboard, getSystemAnalytics } from "../services/api";
 
 const AdminAnalytics = () => {
   const { isDarkMode } = useTheme();
@@ -46,23 +46,38 @@ const AdminAnalytics = () => {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Fetch data on component mount and when period changes
   useEffect(() => {
     fetchAllData();
-  }, [selectedPeriod]);
+  }, [selectedPeriod, adminToken]);
 
   const fetchAllData = async () => {
+    if (!adminToken) {
+      setError("Authentication token not available");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      setError(null);
+
+      // Fetch both analytics and dashboard data
       const [analyticsResponse, dashboardResponse] = await Promise.all([
         getSystemAnalytics(adminToken, selectedPeriod),
         getAdminDashboard(adminToken),
       ]);
 
+      // Set the data from API responses
       setAnalyticsData(analyticsResponse.data.data);
       setDashboardData(dashboardResponse.data.data);
     } catch (err) {
-      setError("Failed to fetch analytics data");
-      console.error(err);
+      console.error("Failed to fetch analytics data:", err);
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to fetch analytics data"
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -72,6 +87,20 @@ const AdminAnalytics = () => {
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchAllData();
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch (error) {
+      return "Invalid Date";
+    }
   };
 
   const AnalyticsCard = ({
@@ -154,27 +183,24 @@ const AdminAnalytics = () => {
   const UserEngagementChart = ({ userAnalytics, videoAnalytics }) => {
     const combinedData = {};
 
+    // Process user analytics
     userAnalytics?.forEach((item) => {
       combinedData[item._id] = {
         date: item._id,
         newUsers: item.newUsers || 0,
-        activeUsers: item.activeUsers || 0,
         newVideos: 0,
-        totalViews: 0,
       };
     });
 
+    // Process video analytics
     videoAnalytics?.forEach((item) => {
       if (combinedData[item._id]) {
         combinedData[item._id].newVideos = item.newVideos || 0;
-        combinedData[item._id].totalViews = item.totalViews || 0;
       } else {
         combinedData[item._id] = {
           date: item._id,
           newUsers: 0,
-          activeUsers: 0,
           newVideos: item.newVideos || 0,
-          totalViews: item.totalViews || 0,
         };
       }
     });
@@ -182,6 +208,36 @@ const AdminAnalytics = () => {
     const chartData = Object.values(combinedData).sort(
       (a, b) => new Date(a.date) - new Date(b.date)
     );
+
+    // If no data, show placeholder message
+    if (chartData.length === 0) {
+      return (
+        <div
+          className={`${
+            isDarkMode
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          } p-6 rounded-lg border shadow-sm`}
+        >
+          <h3
+            className={`text-xl font-semibold mb-6 ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            User & Content Activity Over Time
+          </h3>
+          <div className="flex items-center justify-center h-64">
+            <p
+              className={`text-lg ${
+                isDarkMode ? "text-gray-400" : "text-gray-600"
+              }`}
+            >
+              No activity data available for selected period
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div
@@ -196,7 +252,7 @@ const AdminAnalytics = () => {
             isDarkMode ? "text-white" : "text-gray-900"
           }`}
         >
-          User Engagement Over Time
+          User & Content Activity Over Time
         </h3>
         <ResponsiveContainer width="100%" height={400}>
           <ComposedChart data={chartData}>
@@ -218,15 +274,6 @@ const AdminAnalytics = () => {
                 color: isDarkMode ? "#ffffff" : "#000000",
               }}
             />
-            <Area
-              type="monotone"
-              dataKey="activeUsers"
-              fill="#3b82f6"
-              fillOpacity={0.3}
-              stroke="#3b82f6"
-              strokeWidth={2}
-              name="Active Users"
-            />
             <Bar dataKey="newUsers" fill="#10b981" name="New Users" />
             <Line
               type="monotone"
@@ -242,8 +289,68 @@ const AdminAnalytics = () => {
     );
   };
 
-  const ContentAnalyticsChart = ({ data }) => {
+  const ContentAnalyticsChart = ({ data, isDarkMode }) => {
     const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+
+    // Filter out items with 0 values for better visualization
+    const filteredData = data?.filter((item) => item.value > 0) || [];
+
+    // Custom label to show only percentage inside slices
+    const renderCustomizedLabel = ({
+      cx,
+      cy,
+      midAngle,
+      innerRadius,
+      outerRadius,
+      percent,
+    }) => {
+      const RADIAN = Math.PI / 180;
+      const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+      return (
+        <text
+          x={x}
+          y={y}
+          fill="white"
+          textAnchor={x > cx ? "start" : "end"}
+          dominantBaseline="central"
+          fontSize={12}
+        >
+          {(percent * 100).toFixed(0)}%
+        </text>
+      );
+    };
+
+    if (filteredData.length === 0) {
+      return (
+        <div
+          className={`${
+            isDarkMode
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          } p-6 rounded-lg border shadow-sm`}
+        >
+          <h3
+            className={`text-xl font-semibold mb-6 ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            Content Distribution
+          </h3>
+          <div className="flex items-center justify-center h-64">
+            <p
+              className={`text-lg ${
+                isDarkMode ? "text-gray-400" : "text-gray-600"
+              }`}
+            >
+              No content data available
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div
@@ -261,22 +368,21 @@ const AdminAnalytics = () => {
           Content Distribution
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Chart Section */}
           <div>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={data}
+                  data={filteredData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
-                  }
+                  label={renderCustomizedLabel}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {data?.map((entry, index) => (
+                  {filteredData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={COLORS[index % COLORS.length]}
@@ -296,8 +402,10 @@ const AdminAnalytics = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Legend Section */}
           <div className="space-y-4">
-            {data?.map((item, index) => (
+            {filteredData.map((item, index) => (
               <div
                 key={item.name}
                 className="flex items-center justify-between"
@@ -330,180 +438,36 @@ const AdminAnalytics = () => {
     );
   };
 
-  const PerformanceMetrics = ({ analyticsData, dashboardData }) => {
-    // Calculate user retention rate based on active vs total users
-    const calculateUserRetention = () => {
-      if (!dashboardData?.overview) return { value: "0%", change: 0 };
-
-      const totalUsers = dashboardData.overview.totalUsers || 0;
-      const activeUsers = dashboardData.overview.activeUsers || 0;
-
-      if (totalUsers === 0) return { value: "0%", change: 0 };
-
-      const retentionRate = ((activeUsers / totalUsers) * 100).toFixed(1);
-
-      // Calculate change based on previous period data if available
-      const previousRetention =
-        dashboardData.overview.previousRetention || retentionRate;
-      const change = (
-        ((retentionRate - previousRetention) / previousRetention) *
-        100
-      ).toFixed(1);
-
-      return {
-        value: `${retentionRate}%`,
-        change: parseFloat(change),
-      };
-    };
-
-    // Calculate average session duration from analytics data
-    const calculateAvgSessionDuration = () => {
-      if (
-        !analyticsData?.userAnalytics ||
-        analyticsData.userAnalytics.length === 0
-      ) {
-        return { value: "0m 0s", change: 0 };
-      }
-
-      // Sum up session durations and divide by number of sessions
-      const totalDuration = analyticsData.userAnalytics.reduce((sum, item) => {
-        return sum + (item.avgSessionDuration || 0);
-      }, 0);
-
-      const avgDurationMinutes =
-        totalDuration / analyticsData.userAnalytics.length;
-      const minutes = Math.floor(avgDurationMinutes);
-      const seconds = Math.floor((avgDurationMinutes - minutes) * 60);
-
-      // Calculate change (you might want to compare with previous period data)
-      const previousAvgDuration =
-        analyticsData.previousAvgSessionDuration || avgDurationMinutes;
-      const change =
-        previousAvgDuration > 0
-          ? (
-              ((avgDurationMinutes - previousAvgDuration) /
-                previousAvgDuration) *
-              100
-            ).toFixed(1)
-          : 0;
-
-      return {
-        value: `${minutes}m ${seconds}s`,
-        change: parseFloat(change),
-      };
-    };
-
-    // Calculate content upload rate from video analytics
-    const calculateContentUploadRate = () => {
-      if (
-        !analyticsData?.videoAnalytics ||
-        analyticsData.videoAnalytics.length === 0
-      ) {
-        return { value: "0/day", change: 0 };
-      }
-
-      // Calculate average videos uploaded per day
-      const totalVideos = analyticsData.videoAnalytics.reduce((sum, item) => {
-        return sum + (item.newVideos || 0);
-      }, 0);
-
-      const totalDays = analyticsData.videoAnalytics.length;
-      const videosPerDay =
-        totalDays > 0 ? Math.round(totalVideos / totalDays) : 0;
-
-      // Calculate change compared to previous period
-      const previousUploadRate =
-        analyticsData.previousUploadRate || videosPerDay;
-      const change =
-        previousUploadRate > 0
-          ? (
-              ((videosPerDay - previousUploadRate) / previousUploadRate) *
-              100
-            ).toFixed(1)
-          : 0;
-
-      return {
-        value: `${videosPerDay}/day`,
-        change: parseFloat(change),
-      };
-    };
-
-    // Calculate engagement rate from likes, comments, and views
-    const calculateEngagementRate = () => {
-      if (!dashboardData?.overview) return { value: "0%", change: 0 };
-
-      const totalLikes = dashboardData.overview.totalLikes || 0;
-      const totalComments = dashboardData.overview.totalComments || 0;
-      const totalViews = dashboardData.overview.totalViews || 0;
-
-      if (totalViews === 0) return { value: "0%", change: 0 };
-
-      const engagementRate = (
-        ((totalLikes + totalComments) / totalViews) *
-        100
-      ).toFixed(1);
-
-      // Calculate change
-      const previousEngagement =
-        dashboardData.overview.previousEngagement || engagementRate;
-      const change =
-        previousEngagement > 0
-          ? (
-              ((engagementRate - previousEngagement) / previousEngagement) *
-              100
-            ).toFixed(1)
-          : 0;
-
-      return {
-        value: `${engagementRate}%`,
-        change: parseFloat(change),
-      };
-    };
-
-    const metricsData = [
-      {
-        name: "User Retention",
-        ...calculateUserRetention(),
-        color: "green",
-        icon: Users,
-      },
-      {
-        name: "Avg. Session Duration",
-        ...calculateAvgSessionDuration(),
-        color: "orange",
-        icon: Activity,
-      },
-      {
-        name: "Content Upload Rate",
-        ...calculateContentUploadRate(),
-        color: "blue",
-        icon: Video,
-      },
-      {
-        name: "Engagement Rate",
-        ...calculateEngagementRate(),
-        color: "purple",
-        icon: Heart,
-      },
-    ];
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {metricsData.map((metric, index) => (
-          <AnalyticsCard
-            key={index}
-            title={metric.name}
-            value={metric.value}
-            change={metric.change}
-            icon={metric.icon}
-            color={metric.color}
-          />
-        ))}
-      </div>
-    );
-  };
-
   const TopPerformersTable = ({ users }) => {
+    if (!users || users.length === 0) {
+      return (
+        <div
+          className={`${
+            isDarkMode
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          } p-6 rounded-lg border shadow-sm`}
+        >
+          <h3
+            className={`text-xl font-semibold mb-6 ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            Top Content Creators
+          </h3>
+          <div className="flex items-center justify-center h-32">
+            <p
+              className={`text-lg ${
+                isDarkMode ? "text-gray-400" : "text-gray-600"
+              }`}
+            >
+              No users data available
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         className={`${
@@ -546,7 +510,7 @@ const AdminAnalytics = () => {
                     isDarkMode ? "text-gray-300" : "text-gray-600"
                   }`}
                 >
-                  CreatedAt
+                  Joined Date
                 </th>
                 <th
                   className={`text-left py-3 px-4 font-medium ${
@@ -558,19 +522,28 @@ const AdminAnalytics = () => {
               </tr>
             </thead>
             <tbody>
-              {users?.slice(0, 10).map((user, index) => (
+              {users.slice(0, 10).map((user, index) => (
                 <tr
                   key={user._id}
                   className={`border-b ${
                     isDarkMode ? "border-gray-700" : "border-gray-200"
-                  } hover:${isDarkMode ? "bg-gray-700" : "bg-gray-50"}`}
+                  } hover:${
+                    isDarkMode ? "bg-gray-700" : "bg-gray-50"
+                  } transition-colors`}
                 >
                   <td className="py-4 px-4">
                     <div className="flex items-center space-x-3">
                       <img
-                        src={user.avatar}
+                        src={
+                          user.avatar ||
+                          "https://via.placeholder.com/40x40/3b82f6/ffffff?text=U"
+                        }
                         alt={user.fullName}
                         className="w-10 h-10 rounded-full object-cover"
+                        onError={(e) => {
+                          e.target.src =
+                            "https://via.placeholder.com/40x40/3b82f6/ffffff?text=U";
+                        }}
                       />
                       <div>
                         <p
@@ -578,14 +551,14 @@ const AdminAnalytics = () => {
                             isDarkMode ? "text-white" : "text-gray-900"
                           }`}
                         >
-                          {user.fullName}
+                          {user.fullName || "Unknown User"}
                         </p>
                         <p
                           className={`text-sm ${
                             isDarkMode ? "text-gray-400" : "text-gray-500"
                           }`}
                         >
-                          @{user.userName}
+                          @{user.userName || "unknown"}
                         </p>
                       </div>
                     </div>
@@ -595,14 +568,14 @@ const AdminAnalytics = () => {
                       isDarkMode ? "text-gray-300" : "text-gray-600"
                     }`}
                   >
-                    {user.videoCount}
+                    {user.videoCount || 0}
                   </td>
                   <td
                     className={`py-4 px-4 ${
                       isDarkMode ? "text-gray-300" : "text-gray-600"
                     }`}
                   >
-                    {user.createdAt || 0}
+                    {formatDate(user.createdAt)}
                   </td>
                   <td className="py-4 px-4">
                     <span
@@ -628,6 +601,41 @@ const AdminAnalytics = () => {
     );
   };
 
+  // Overview Cards Component
+  const OverviewCards = () => {
+    const overview = dashboardData?.overview || {};
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <AnalyticsCard
+          title="Total Users"
+          value={overview.totalUsers}
+          icon={Users}
+          color="blue"
+        />
+        <AnalyticsCard
+          title="Total Videos"
+          value={overview.totalVideos}
+          icon={Video}
+          color="green"
+        />
+        <AnalyticsCard
+          title="Total Comments"
+          value={overview.totalComments}
+          icon={MessageCircle}
+          color="purple"
+        />
+        <AnalyticsCard
+          title="Total Likes"
+          value={overview.totalLikes}
+          icon={Heart}
+          color="red"
+        />
+      </div>
+    );
+  };
+
+  // Handle loading state
   if (loading) {
     return (
       <div
@@ -649,6 +657,7 @@ const AdminAnalytics = () => {
     );
   }
 
+  // Handle error state
   if (error) {
     return (
       <div
@@ -672,7 +681,7 @@ const AdminAnalytics = () => {
     );
   }
 
-  // Mock data for demonstration
+  // Content distribution data from API response
   const contentDistribution = [
     { name: "Videos", value: dashboardData?.overview?.totalVideos || 0 },
     { name: "Comments", value: dashboardData?.overview?.totalComments || 0 },
@@ -730,7 +739,7 @@ const AdminAnalytics = () => {
                 isDarkMode
                   ? "bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
                   : "bg-white border-gray-300 text-gray-900 hover:bg-gray-50"
-              } focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors`}
+              } focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors disabled:opacity-50`}
             >
               <RefreshCw
                 className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
@@ -740,12 +749,13 @@ const AdminAnalytics = () => {
           </div>
         </div>
 
-        {/* Performance Metrics */}
+        {/* Overview Cards */}
+        <OverviewCards />
 
         {/* Main Analytics Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
-          {/* User Engagement Chart - Takes 2 columns */}
-          <div className="xl:col-span-2">
+          {/* User Engagement Chart - Takes 1 column */}
+          <div className="xl:col-span-1">
             <UserEngagementChart
               userAnalytics={analyticsData?.userAnalytics}
               videoAnalytics={analyticsData?.videoAnalytics}

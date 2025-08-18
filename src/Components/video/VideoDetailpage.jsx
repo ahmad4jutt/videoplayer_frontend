@@ -58,7 +58,6 @@ import { toast } from "react-toastify";
 const VideoDetailpage = () => {
   const { videoId, channelId, userId } = useParams();
   const { currentUser, token } = useAuth();
-  // console.log("currentuser", currentUser.data.avatar);
 
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
@@ -76,6 +75,8 @@ const VideoDetailpage = () => {
   const [error, setError] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
+  const [displayedVideosCount, setDisplayedVideosCount] = useState(5);
+  const [showingAllRelated, setShowingAllRelated] = useState(false);
 
   // Likes states
   const [liked, setLiked] = useState(false);
@@ -95,6 +96,9 @@ const VideoDetailpage = () => {
   const [editingCommentText, setEditingCommentText] = useState("");
   const [deletingCommentId, setDeletingCommentId] = useState(null);
 
+  // NEW: Comments modal state for mobile
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+
   // Updated Subscription states to match UserChannelPage
   const [subscriptionData, setSubscriptionData] = useState(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
@@ -105,7 +109,6 @@ const VideoDetailpage = () => {
   const [showUnsubscribeModal, setShowUnsubscribeModal] = useState(false);
   // Share modal states
   const [showShareModal, setShowShareModal] = useState(false);
-  const [copySuccess, setCopySuccess] = useState(false);
 
   // Playlist states
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
@@ -455,8 +458,6 @@ const VideoDetailpage = () => {
         content: newComment.trim(),
       });
 
-      console.log("Add comment response:", response);
-
       let newCommentData = null;
       if (response?.data?.comment) {
         newCommentData = response.data.comment;
@@ -612,7 +613,6 @@ const VideoDetailpage = () => {
       setPlaylistsLoading(false);
     }
   };
-  // Video resolution handler
 
   const handleAddToPlaylist = async (playlistId) => {
     if (!token || !videoId || !playlistId) return;
@@ -699,7 +699,17 @@ const VideoDetailpage = () => {
     // Navigate to new video
     navigate(`/video/${relatedVideoId}`);
   };
-
+  const handleShowMoreRelated = () => {
+    if (showingAllRelated) {
+      // Reset to initial count
+      setDisplayedVideosCount(5);
+      setShowingAllRelated(false);
+    } else {
+      // Show all videos
+      setDisplayedVideosCount(relatedVideos.length);
+      setShowingAllRelated(true);
+    }
+  };
   // Format functions
   const formatViews = (views) => {
     if (!views || views === 0) return "0";
@@ -745,7 +755,6 @@ const VideoDetailpage = () => {
 
       if (!isInsideMenu) {
         setShowMoreMenu(false);
-        setShowResolutionMenu(false);
       }
     };
 
@@ -755,7 +764,8 @@ const VideoDetailpage = () => {
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [showMoreMenu, , showShareModal, showPlaylistModal]);
+  }, [showMoreMenu, showShareModal, showPlaylistModal]);
+
   // Initial data loading
   useEffect(() => {
     if (token && videoId && !hasInitialized.current) {
@@ -779,7 +789,8 @@ const VideoDetailpage = () => {
         setSubscriptionData(null);
         setSubscriberCount(0);
         setSubscriberLoading(true);
-
+        setDisplayedVideosCount(5);
+        setShowingAllRelated(false);
         await Promise.all([
           checkSubscriptionStatus(video.owner._id),
           fetchSubscriberCount(video.owner._id),
@@ -803,6 +814,8 @@ const VideoDetailpage = () => {
       setSubscriptionData(null);
       setSubscriberCount(0);
       setSubscriberLoading(false);
+      setDisplayedVideosCount(5);
+      setShowingAllRelated(false);
     };
   }, [videoId, video?.owner?._id, fetchSubscriberCount]);
 
@@ -992,6 +1005,7 @@ const VideoDetailpage = () => {
       </div>
     </div>
   );
+
   const PlaylistModal = () => {
     const [error, setError] = useState(null);
 
@@ -1274,6 +1288,318 @@ const VideoDetailpage = () => {
     );
   };
 
+  // NEW: Comments Modal Component for Mobile
+  const CommentsModal = () => (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end justify-center z-50 lg:hidden">
+      <div
+        className={`${
+          isDarkMode ? "bg-gray-900" : "bg-white"
+        } w-full h-[90vh] rounded-t-2xl shadow-2xl overflow-hidden`}
+        style={{
+          animation: "slideUp 0.3s ease-out",
+        }}
+      >
+        {/* Modal Header */}
+        <div
+          className={`sticky top-0 z-10 px-4 py-4 border-b flex items-center justify-between ${
+            isDarkMode
+              ? "bg-gray-900 border-gray-800"
+              : "bg-white border-gray-200"
+          }`}
+        >
+          <h3
+            className={`text-lg font-semibold flex items-center gap-2 ${
+              isDarkMode ? "text-white" : "text-gray-900"
+            }`}
+          >
+            <MessageCircle size={20} />
+            Comments ({comments.length})
+          </h3>
+          <button
+            onClick={() => setShowCommentsModal(false)}
+            className={`p-2 rounded-full transition-colors ${
+              isDarkMode
+                ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Modal Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {/* Add Comment Form */}
+          {currentUser && (
+            <form onSubmit={handleAddComment} className="mb-6">
+              <div className="flex gap-3 items-start">
+                <div className="relative w-10 h-10 flex-shrink-0">
+                  {currentUser.avatar ? (
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.fullName || "User"}
+                      className="w-10 h-10 rounded-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                        e.target.nextElementSibling.style.display = "flex";
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm absolute top-0 left-0"
+                    style={{
+                      display: currentUser.avatar ? "none" : "flex",
+                    }}
+                  >
+                    {(currentUser.fullName || "U").charAt(0).toUpperCase()}
+                  </div>
+                </div>
+
+                <div className="flex-1 relative">
+                  <div className="relative">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Add a comment..."
+                      className={`w-full p-4 pr-20 border-0 border-b-2 ${
+                        isDarkMode
+                          ? "border-gray-600 bg-transparent text-white placeholder-gray-400 focus:border-blue-400"
+                          : "border-gray-300 bg-transparent text-gray-900 placeholder-gray-500 focus:border-blue-500"
+                      } focus:outline-none transition-colors duration-200 resize-none`}
+                      rows="2"
+                      disabled={addingComment}
+                      onInput={(e) => {
+                        e.target.style.height = "60px";
+                        e.target.style.height =
+                          Math.min(e.target.scrollHeight, 120) + "px";
+                      }}
+                    />
+
+                    <div className="absolute right-2 bottom-2 flex gap-2">
+                      {newComment.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => setNewComment("")}
+                          className={`p-2 rounded-full ${
+                            isDarkMode
+                              ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700"
+                              : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                          } transition-all duration-200`}
+                          disabled={addingComment}
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={!newComment.trim() || addingComment}
+                        className={`p-2 rounded-full transition-all duration-200 ${
+                          !newComment.trim() || addingComment
+                            ? isDarkMode
+                              ? "text-gray-600 cursor-not-allowed"
+                              : "text-gray-400 cursor-not-allowed"
+                            : "text-white bg-blue-500 hover:bg-blue-600 shadow-md hover:shadow-lg transform hover:scale-105"
+                        }`}
+                      >
+                        {addingComment ? (
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <Send size={16} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {/* Comments Error Display */}
+          {commentsError && (
+            <div
+              className={`mb-4 p-3 ${
+                isDarkMode
+                  ? "bg-red-900 text-red-300"
+                  : "bg-red-100 text-red-700"
+              } rounded-lg text-sm`}
+            >
+              {commentsError}
+            </div>
+          )}
+
+          {/* Comments Loading */}
+          {commentsLoading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <span
+                className={`ml-2 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-600"
+                }`}
+              >
+                Loading comments...
+              </span>
+            </div>
+          )}
+
+          {/* Comments List */}
+          <div className="space-y-4">
+            {comments.length === 0 && !commentsLoading ? (
+              <div
+                className={`text-center py-8 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-500"
+                }`}
+              >
+                <MessageCircle size={48} className="mx-auto mb-4 opacity-50" />
+                <p>No comments yet. Be the first to comment!</p>
+              </div>
+            ) : (
+              comments.map((comment) => (
+                <div
+                  key={comment._id}
+                  className={`flex gap-3 p-4 ${
+                    isDarkMode ? "bg-gray-800" : "bg-gray-50"
+                  } rounded-lg`}
+                >
+                  {comment?.owner?.avatar ? (
+                    <img
+                      src={comment.owner.avatar}
+                      alt={comment.owner?.fullName}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold text-sm">
+                      {comment.owner?.fullName?.charAt(0)?.toUpperCase() || "U"}
+                    </div>
+                  )}
+
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4
+                        className={`font-medium ${
+                          isDarkMode ? "text-white" : "text-gray-900"
+                        }`}
+                      >
+                        {comment.owner?.fullName || "Anonymous"}
+                      </h4>
+                      <span
+                        className={`text-xs ${
+                          isDarkMode ? "text-gray-400" : "text-gray-500"
+                        }`}
+                      >
+                        {formatDate(comment.createdAt)}
+                      </span>
+                    </div>
+
+                    {editingCommentId === comment._id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={editingCommentText}
+                          onChange={(e) =>
+                            setEditingCommentText(e.target.value)
+                          }
+                          className={`w-full p-2 border ${
+                            isDarkMode
+                              ? "border-gray-600 bg-gray-800 text-white"
+                              : "border-gray-300 bg-white text-gray-900"
+                          } rounded`}
+                          rows="2"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => handleEditComment(comment._id, e)}
+                            className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingCommentId(null);
+                              setEditingCommentText("");
+                            }}
+                            className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p
+                        className={`${
+                          isDarkMode ? "text-gray-300" : "text-gray-700"
+                        } mb-3`}
+                      >
+                        {comment.content}
+                      </p>
+                    )}
+
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={(e) => handleToggleCommentLike(comment._id, e)}
+                        className={`flex items-center gap-1 text-sm transition-colors ${
+                          comment.isLiked
+                            ? "text-blue-500"
+                            : `${
+                                isDarkMode
+                                  ? "text-gray-400 hover:text-blue-500"
+                                  : "text-gray-500 hover:text-blue-500"
+                              }`
+                        }`}
+                      >
+                        <ThumbsUp size={14} />
+                        <span>{comment.likesCount || 0}</span>
+                      </button>
+
+                      {currentUser._id === comment.owner?._id && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditingCommentId(comment._id);
+                              setEditingCommentText(comment.content);
+                            }}
+                            className={`flex items-center gap-1 text-sm ${
+                              isDarkMode
+                                ? "text-gray-400 hover:text-blue-500"
+                                : "text-gray-500 hover:text-blue-500"
+                            } transition-colors`}
+                          >
+                            <Edit size={14} />
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteComment(comment._id, e)}
+                            disabled={deletingCommentId === comment._id}
+                            className={`flex items-center gap-1 text-sm ${
+                              isDarkMode
+                                ? "text-gray-400 hover:text-red-500"
+                                : "text-gray-500 hover:text-red-500"
+                            } transition-colors disabled:opacity-50`}
+                          >
+                            {deletingCommentId === comment._id ? (
+                              <>
+                                <div className="w-3 h-3 border border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                                Deleting...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 size={14} />
+                                Delete
+                              </>
+                            )}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div
       className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}
@@ -1281,9 +1607,23 @@ const VideoDetailpage = () => {
       {/* Unsubscribe Modal */}
       {showUnsubscribeModal && <UnsubscribeModal />}
       {showPlaylistModal && <PlaylistModal />}
+      {/* NEW: Comments Modal */}
+      {showCommentsModal && <CommentsModal />}
+
+      {/* Add CSS for slide-up animation */}
+      <style jsx>{`
+        @keyframes slideUp {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+      `}</style>
 
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3  ">
           {/* Main Video Section */}
           <div className="lg:col-span-2">
             {/* Video Player */}
@@ -1307,7 +1647,7 @@ const VideoDetailpage = () => {
               } rounded-lg shadow-lg p-6 mb-6`}
             >
               <h1
-                className={`text-2xl font-bold ${
+                className={`text-2xl sm:text-lg font-bold ${
                   isDarkMode ? "text-white" : "text-gray-900"
                 } mb-4`}
               >
@@ -1578,290 +1918,327 @@ const VideoDetailpage = () => {
               </div>
             </div>
 
-            {/* Comments Section */}
-            <div
-              className={`${
-                isDarkMode ? "bg-gray-800" : "bg-white"
-              } rounded-lg shadow-lg p-6`}
-            >
-              <h3
-                className={`text-xl font-semibold ${
-                  isDarkMode ? "text-white" : "text-gray-900"
-                } mb-6 flex items-center gap-2`}
+            {/* NEW: Comments Button for Small Screens */}
+            <div className="block lg:hidden mb-6">
+              <button
+                onClick={() => setShowCommentsModal(true)}
+                className={`w-full flex items-center justify-between p-4 rounded-lg ${
+                  isDarkMode ? "bg-gray-800" : "bg-white"
+                } shadow-lg transition-all hover:shadow-xl transform hover:scale-[1.02]`}
               >
-                <MessageCircle size={20} />
-                Comments ({comments.length})
-              </h3>
-
-              {/* Add Comment Form */}
-              {currentUser && (
-                <form onSubmit={handleAddComment} className="mb-6">
-                  <div className="flex gap-2 sm:gap-3 items-start">
-                    {/* User Avatar - smaller on mobile */}
-                    <div className="relative w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
-                      {currentUser.avatar ? (
-                        <img
-                          src={currentUser.avatar}
-                          alt={currentUser.fullName || "User"}
-                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = "none";
-                            e.target.nextElementSibling.style.display = "flex";
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs sm:text-sm absolute top-0 left-0"
-                        style={{
-                          display: currentUser.avatar ? "none" : "flex",
-                        }}
-                      >
-                        {(currentUser.fullName || "U").charAt(0).toUpperCase()}
-                      </div>
-                    </div>
-
-                    {/* Comment Input Container */}
-                    <div className="flex-1 relative">
-                      <div className="relative">
-                        <textarea
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          placeholder="Add a comment..."
-                          className={`w-full p-3 sm:p-4 pr-16 sm:pr-20 border-0 border-b-2 text-sm sm:text-base ${
-                            isDarkMode
-                              ? "border-gray-600 bg-transparent text-white placeholder-gray-400 focus:border-blue-400"
-                              : "border-gray-300 bg-transparent text-gray-900 placeholder-gray-500 focus:border-blue-500"
-                          } focus:outline-none transition-colors duration-200 resize-none`}
-                          rows="1"
-                          disabled={addingComment}
-                          style={{
-                            minHeight: "40px",
-                            lineHeight: "1.5",
-                          }}
-                          onInput={(e) => {
-                            e.target.style.height = "40px";
-                            e.target.style.height =
-                              Math.min(e.target.scrollHeight, 120) + "px";
-                          }}
-                        />
-
-                        {/* Send Button Inside Textarea */}
-                        <div className="absolute right-1 sm:right-2 bottom-1 sm:bottom-2 flex gap-1 sm:gap-2">
-                          {newComment.trim() && (
-                            <button
-                              type="button"
-                              onClick={() => setNewComment("")}
-                              className={`p-1.5 sm:p-2 rounded-full ${
-                                isDarkMode
-                                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700"
-                                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                              } transition-all duration-200`}
-                              disabled={addingComment}
-                            >
-                              <X size={14} />
-                            </button>
-                          )}
-
-                          <button
-                            type="submit"
-                            disabled={!newComment.trim() || addingComment}
-                            className={`p-1.5 sm:p-2 rounded-full transition-all duration-200 ${
-                              !newComment.trim() || addingComment
-                                ? isDarkMode
-                                  ? "text-gray-600 cursor-not-allowed"
-                                  : "text-gray-400 cursor-not-allowed"
-                                : "text-white bg-blue-500 hover:bg-blue-600 shadow-md hover:shadow-lg transform hover:scale-105"
-                            }`}
-                          >
-                            {addingComment ? (
-                              <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : (
-                              <Send size={14} />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </form>
-              )}
-
-              {/* Comments Loading */}
-              {commentsLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <div className="flex items-center gap-3">
+                  <MessageCircle
+                    size={20}
+                    className={isDarkMode ? "text-blue-400" : "text-blue-500"}
+                  />
                   <span
-                    className={`ml-2 ${
-                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                    className={`font-medium ${
+                      isDarkMode ? "text-white" : "text-gray-900"
                     }`}
                   >
-                    Loading comments...
+                    Comments ({comments.length})
                   </span>
                 </div>
-              )}
+                <div
+                  className={`text-sm ${
+                    isDarkMode ? "text-gray-400" : "text-gray-500"
+                  }`}
+                >
+                  Tap to view
+                </div>
+              </button>
+            </div>
 
-              {/* Comments List */}
-              <div className="space-y-4">
-                {comments.length === 0 && !commentsLoading ? (
-                  <div
-                    className={`text-center py-8 ${
-                      isDarkMode ? "text-gray-400" : "text-gray-500"
-                    }`}
-                  >
-                    <MessageCircle
-                      size={48}
-                      className="mx-auto mb-4 opacity-50"
-                    />
-                    <p>No comments yet. Be the first to comment!</p>
-                  </div>
-                ) : (
-                  comments.map((comment) => (
-                    <div
-                      key={comment._id}
-                      className={`flex gap-3 p-4 ${
-                        isDarkMode ? "bg-gray-700" : "bg-gray-50"
-                      } rounded-lg`}
-                    >
-                      {comment?.owner?.avatar ? (
-                        <img
-                          src={comment.owner.avatar}
-                          alt={comment.owner?.fullName}
-                          className="w-10 h-10 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold text-sm">
-                          {comment.owner?.fullName?.charAt(0)?.toUpperCase() ||
-                            "U"}
+            {/* Desktop Comments Section */}
+            <div className="hidden lg:block">
+              <div
+                className={`${
+                  isDarkMode ? "bg-gray-800" : "bg-white"
+                } rounded-lg shadow-lg p-6`}
+              >
+                <h3
+                  className={`text-xl font-semibold ${
+                    isDarkMode ? "text-white" : "text-gray-900"
+                  } mb-6 flex items-center gap-2`}
+                >
+                  <MessageCircle size={20} />
+                  Comments ({comments.length})
+                </h3>
+
+                {/* Add Comment Form */}
+                {currentUser && (
+                  <form onSubmit={handleAddComment} className="mb-6">
+                    <div className="flex gap-2 sm:gap-3 items-start">
+                      {/* User Avatar - smaller on mobile */}
+                      <div className="relative w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+                        {currentUser.avatar ? (
+                          <img
+                            src={currentUser.avatar}
+                            alt={currentUser.fullName || "User"}
+                            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                              e.target.nextElementSibling.style.display =
+                                "flex";
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs sm:text-sm absolute top-0 left-0"
+                          style={{
+                            display: currentUser.avatar ? "none" : "flex",
+                          }}
+                        >
+                          {(currentUser.fullName || "U")
+                            .charAt(0)
+                            .toUpperCase()}
                         </div>
-                      )}
+                      </div>
 
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4
-                            className={`font-medium ${
-                              isDarkMode ? "text-white" : "text-gray-900"
-                            }`}
-                          >
-                            {comment.owner?.fullName || "Anonymous"}
-                          </h4>
-                          <span
-                            className={`text-xs ${
-                              isDarkMode ? "text-gray-400" : "text-gray-500"
-                            }`}
-                          >
-                            {formatDate(comment.createdAt)}
-                          </span>
-                        </div>
+                      {/* Comment Input Container */}
+                      <div className="flex-1 relative">
+                        <div className="relative">
+                          <textarea
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Add a comment..."
+                            className={`w-full p-3 sm:p-4 pr-16 sm:pr-20 border-0 border-b-2 text-sm sm:text-base ${
+                              isDarkMode
+                                ? "border-gray-600 bg-transparent text-white placeholder-gray-400 focus:border-blue-400"
+                                : "border-gray-300 bg-transparent text-gray-900 placeholder-gray-500 focus:border-blue-500"
+                            } focus:outline-none transition-colors duration-200 resize-none`}
+                            rows="1"
+                            disabled={addingComment}
+                            style={{
+                              minHeight: "40px",
+                              lineHeight: "1.5",
+                            }}
+                            onInput={(e) => {
+                              e.target.style.height = "40px";
+                              e.target.style.height =
+                                Math.min(e.target.scrollHeight, 120) + "px";
+                            }}
+                          />
 
-                        {editingCommentId === comment._id ? (
-                          <div className="space-y-2">
-                            <textarea
-                              value={editingCommentText}
-                              onChange={(e) =>
-                                setEditingCommentText(e.target.value)
-                              }
-                              className={`w-full p-2 border ${
-                                isDarkMode
-                                  ? "border-gray-600 bg-gray-800 text-white"
-                                  : "border-gray-300 bg-white text-gray-900"
-                              } rounded`}
-                              rows="2"
-                            />
-                            <div className="flex gap-2">
+                          {/* Send Button Inside Textarea */}
+                          <div className="absolute right-1 sm:right-2 bottom-1 sm:bottom-2 flex gap-1 sm:gap-2">
+                            {newComment.trim() && (
                               <button
-                                onClick={(e) =>
-                                  handleEditComment(comment._id, e)
-                                }
-                                className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
+                                type="button"
+                                onClick={() => setNewComment("")}
+                                className={`p-1.5 sm:p-2 rounded-full ${
+                                  isDarkMode
+                                    ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700"
+                                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                                } transition-all duration-200`}
+                                disabled={addingComment}
                               >
-                                Save
+                                <X size={14} />
                               </button>
-                              <button
-                                onClick={() => {
-                                  setEditingCommentId(null);
-                                  setEditingCommentText("");
-                                }}
-                                className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm transition-colors"
-                              >
-                                Cancel
-                              </button>
-                            </div>
+                            )}
+
+                            <button
+                              type="submit"
+                              disabled={!newComment.trim() || addingComment}
+                              className={`p-1.5 sm:p-2 rounded-full transition-all duration-200 ${
+                                !newComment.trim() || addingComment
+                                  ? isDarkMode
+                                    ? "text-gray-600 cursor-not-allowed"
+                                    : "text-gray-400 cursor-not-allowed"
+                                  : "text-white bg-blue-500 hover:bg-blue-600 shadow-md hover:shadow-lg transform hover:scale-105"
+                              }`}
+                            >
+                              {addingComment ? (
+                                <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <Send size={14} />
+                              )}
+                            </button>
                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                )}
+
+                {/* Comments Loading */}
+                {commentsLoading && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span
+                      className={`ml-2 ${
+                        isDarkMode ? "text-gray-400" : "text-gray-600"
+                      }`}
+                    >
+                      Loading comments...
+                    </span>
+                  </div>
+                )}
+
+                {/* Comments List */}
+                <div className="space-y-4">
+                  {comments.length === 0 && !commentsLoading ? (
+                    <div
+                      className={`text-center py-8 ${
+                        isDarkMode ? "text-gray-400" : "text-gray-500"
+                      }`}
+                    >
+                      <MessageCircle
+                        size={48}
+                        className="mx-auto mb-4 opacity-50"
+                      />
+                      <p>No comments yet. Be the first to comment!</p>
+                    </div>
+                  ) : (
+                    comments.map((comment) => (
+                      <div
+                        key={comment._id}
+                        className={`flex gap-3 p-4 ${
+                          isDarkMode ? "bg-gray-700" : "bg-gray-50"
+                        } rounded-lg`}
+                      >
+                        {comment?.owner?.avatar ? (
+                          <img
+                            src={comment.owner.avatar}
+                            alt={comment.owner?.fullName}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
                         ) : (
-                          <p
-                            className={`${
-                              isDarkMode ? "text-gray-300" : "text-gray-700"
-                            } mb-3`}
-                          >
-                            {comment.content}
-                          </p>
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold text-sm">
+                            {comment.owner?.fullName
+                              ?.charAt(0)
+                              ?.toUpperCase() || "U"}
+                          </div>
                         )}
 
-                        <div className="flex items-center gap-4">
-                          <button
-                            onClick={(e) =>
-                              handleToggleCommentLike(comment._id, e)
-                            }
-                            className={`flex items-center gap-1 text-sm transition-colors ${
-                              comment.isLiked
-                                ? "text-blue-500"
-                                : `${
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4
+                              className={`font-medium ${
+                                isDarkMode ? "text-white" : "text-gray-900"
+                              }`}
+                            >
+                              {comment.owner?.fullName || "Anonymous"}
+                            </h4>
+                            <span
+                              className={`text-xs ${
+                                isDarkMode ? "text-gray-400" : "text-gray-500"
+                              }`}
+                            >
+                              {formatDate(comment.createdAt)}
+                            </span>
+                          </div>
+
+                          {editingCommentId === comment._id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={editingCommentText}
+                                onChange={(e) =>
+                                  setEditingCommentText(e.target.value)
+                                }
+                                className={`w-full p-2 border ${
+                                  isDarkMode
+                                    ? "border-gray-600 bg-gray-800 text-white"
+                                    : "border-gray-300 bg-white text-gray-900"
+                                } rounded`}
+                                rows="2"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={(e) =>
+                                    handleEditComment(comment._id, e)
+                                  }
+                                  className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingCommentId(null);
+                                    setEditingCommentText("");
+                                  }}
+                                  className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p
+                              className={`${
+                                isDarkMode ? "text-gray-300" : "text-gray-700"
+                              } mb-3`}
+                            >
+                              {comment.content}
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-4">
+                            <button
+                              onClick={(e) =>
+                                handleToggleCommentLike(comment._id, e)
+                              }
+                              className={`flex items-center gap-1 text-sm transition-colors ${
+                                comment.isLiked
+                                  ? "text-blue-500"
+                                  : `${
+                                      isDarkMode
+                                        ? "text-gray-400 hover:text-blue-500"
+                                        : "text-gray-500 hover:text-blue-500"
+                                    }`
+                              }`}
+                            >
+                              <ThumbsUp size={14} />
+                              <span>{comment.likesCount || 0}</span>
+                            </button>
+
+                            {currentUser._id === comment.owner?._id && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingCommentId(comment._id);
+                                    setEditingCommentText(comment.content);
+                                  }}
+                                  className={`flex items-center gap-1 text-sm ${
                                     isDarkMode
                                       ? "text-gray-400 hover:text-blue-500"
                                       : "text-gray-500 hover:text-blue-500"
-                                  }`
-                            }`}
-                          >
-                            <ThumbsUp size={14} />
-                            <span>{comment.likesCount || 0}</span>
-                          </button>
-
-                          {currentUser._id === comment.owner?._id && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setEditingCommentId(comment._id);
-                                  setEditingCommentText(comment.content);
-                                }}
-                                className={`flex items-center gap-1 text-sm ${
-                                  isDarkMode
-                                    ? "text-gray-400 hover:text-blue-500"
-                                    : "text-gray-500 hover:text-blue-500"
-                                } transition-colors`}
-                              >
-                                <Edit size={14} />
-                                Edit
-                              </button>
-                              <button
-                                onClick={(e) =>
-                                  handleDeleteComment(comment._id, e)
-                                }
-                                disabled={deletingCommentId === comment._id}
-                                className={`flex items-center gap-1 text-sm ${
-                                  isDarkMode
-                                    ? "text-gray-400 hover:text-red-500"
-                                    : "text-gray-500 hover:text-red-500"
-                                } transition-colors disabled:opacity-50`}
-                              >
-                                {deletingCommentId === comment._id ? (
-                                  <>
-                                    <div className="w-3 h-3 border border-red-500 border-t-transparent rounded-full animate-spin"></div>
-                                    Deleting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Trash2 size={14} />
-                                    Delete
-                                  </>
-                                )}
-                              </button>
-                            </>
-                          )}
+                                  } transition-colors`}
+                                >
+                                  <Edit size={14} />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={(e) =>
+                                    handleDeleteComment(comment._id, e)
+                                  }
+                                  disabled={deletingCommentId === comment._id}
+                                  className={`flex items-center gap-1 text-sm ${
+                                    isDarkMode
+                                      ? "text-gray-400 hover:text-red-500"
+                                      : "text-gray-500 hover:text-red-500"
+                                  } transition-colors disabled:opacity-50`}
+                                >
+                                  {deletingCommentId === comment._id ? (
+                                    <>
+                                      <div className="w-3 h-3 border border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                                      Deleting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Trash2 size={14} />
+                                      Delete
+                                    </>
+                                  )}
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1870,23 +2247,23 @@ const VideoDetailpage = () => {
           <div className="lg:col-span-1">
             <div
               className={`${
-                isDarkMode ? "bg-gray-800" : "bg-white"
-              } rounded-lg shadow-lg p-4 sm:p-6`}
+                isDarkMode ? "bg-transparent" : "bg-transparent"
+              } p-0 lg:p-6`}
             >
               <h3
                 className={`text-base sm:text-lg font-semibold ${
                   isDarkMode ? "text-white" : "text-gray-900"
-                } mb-4 sm:mb-6 flex items-center gap-2`}
+                } mb-4 sm:mb-6 flex items-center gap-2 px-4 lg:px-0`}
               >
-                <PlayCircle size={18} sm:size={20} />
+                <PlayCircle size={18} />
                 Related Videos
               </h3>
 
-              {/* Related Videos List */}
-              <div className="space-y-3 sm:space-y-4">
+              {/* Related Videos List - Mobile & Desktop Responsive */}
+              <div className="space-y-2 lg:space-y-4">
                 {relatedVideos.length === 0 ? (
                   <div
-                    className={`text-center py-2 ${
+                    className={`text-center py-8 ${
                       isDarkMode ? "text-gray-400" : "text-gray-500"
                     }`}
                   >
@@ -1894,115 +2271,221 @@ const VideoDetailpage = () => {
                     <p>No related videos found</p>
                   </div>
                 ) : (
-                  relatedVideos.map((relatedVideo) => (
-                    <div
-                      key={relatedVideo._id}
-                      onClick={() => handleRelatedVideoClick(relatedVideo._id)}
-                      className={`flex gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg cursor-pointer transition-colors ${
-                        isDarkMode
-                          ? "hover:bg-gray-700 bg-gray-750"
-                          : "hover:bg-gray-50 bg-gray-25"
-                      }`}
-                    >
-                      {/* Video Thumbnail */}
-                      <div className="relative flex-shrink-0">
-                        <img
-                          src={
-                            relatedVideo.thumbnail?.url ||
-                            "/api/placeholder/160/90"
-                          }
-                          alt={relatedVideo.title}
-                          className="w-32 h-20 sm:w-40 sm:h-24 object-cover rounded-lg"
-                          onError={(e) => {
-                            e.target.src = "/api/placeholder/160/90";
-                          }}
-                        />
-                        {/* Duration Overlay */}
-                        {relatedVideo.duration && (
-                          <div className="absolute bottom-1 right-1 bg-black bg-opacity-75 text-white text-xs px-1 py-0.5 rounded">
-                            {formatDuration(relatedVideo.duration)}
-                          </div>
-                        )}
-                        {/* Play Icon Overlay */}
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                          <div className="bg-black bg-opacity-50 rounded-full p-2">
-                            <Play size={20} className="text-white" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Video Info */}
-                      <div className="flex-1 min-w-0">
-                        <h4
-                          className={`font-medium text-sm sm:text-base ${
-                            isDarkMode ? "text-white" : "text-gray-900"
-                          } line-clamp-2 mb-1`}
-                        >
-                          {relatedVideo.title}
-                        </h4>
-
-                        {/* Channel Info */}
-                        <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
-                          {relatedVideo.owner?.avatar ? (
+                  relatedVideos
+                    .slice(0, displayedVideosCount)
+                    .map((relatedVideo) => (
+                      <div
+                        key={relatedVideo._id}
+                        onClick={() =>
+                          handleRelatedVideoClick(relatedVideo._id)
+                        }
+                        className={`group cursor-pointer transition-all duration-300 ease-in-out lg:flex lg:gap-3 lg:p-3 lg:rounded-lg
+           
+                ${
+                  isDarkMode
+                    ? "lg:hover:bg-gray-700/50 lg:bg-transparent hover:bg-gray-800/30"
+                    : "lg:hover:bg-gray-100/70 lg:bg-transparent hover:bg-gray-50/70"
+                }
+           
+                block lg:block px-4 lg:px-0 mb-4 lg:mb-0
+              `}
+                      >
+                        {/* Mobile Layout */}
+                        <div className="lg:hidden">
+                          {/* Mobile Thumbnail - Full Width */}
+                          <div className="relative w-full aspect-video mb-3 rounded-xl overflow-hidden">
                             <img
-                              src={relatedVideo.owner.avatar}
-                              alt={relatedVideo.owner.fullName}
-                              className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover"
+                              src={relatedVideo.thumbnail?.url}
+                              alt={relatedVideo.title}
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                             />
-                          ) : (
-                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
-                              {relatedVideo.owner?.fullName
-                                ?.charAt(0)
-                                ?.toUpperCase() || "U"}
+
+                            {/* Duration Overlay */}
+                            {relatedVideo.duration && (
+                              <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs font-medium px-2 py-1 rounded-md">
+                                {formatDuration(relatedVideo.duration)}
+                              </div>
+                            )}
+
+                            {/* Play Icon Overlay - Larger for mobile */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                              <div className="bg-black/60 rounded-full p-4 transform scale-90 group-hover:scale-100 transition-transform duration-300">
+                                <Play
+                                  size={24}
+                                  className="text-white fill-white ml-1"
+                                />
+                              </div>
                             </div>
-                          )}
-                          <span
-                            className={`text-xs sm:text-sm ${
-                              isDarkMode ? "text-gray-400" : "text-gray-600"
-                            } truncate`}
-                          >
-                            {relatedVideo.owner?.fullName || "Unknown Creator"}
-                          </span>
+
+                            {/* Gradient Overlay on Hover */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          </div>
+
+                          {/* Mobile Video Info */}
+                          <div className="space-y-2">
+                            <h4
+                              className={`font-semibold text-base leading-tight ${
+                                isDarkMode ? "text-white" : "text-gray-900"
+                              } line-clamp-2 group-hover:text-blue-500 transition-colors duration-200`}
+                            >
+                              {relatedVideo.title}
+                            </h4>
+
+                            {/* Channel Info */}
+                            <div className="flex items-center gap-3">
+                              {relatedVideo.owner?.avatar ? (
+                                <img
+                                  src={relatedVideo.owner.avatar}
+                                  alt={relatedVideo.owner.fullName}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                                  {relatedVideo.owner?.fullName
+                                    ?.charAt(0)
+                                    ?.toUpperCase() || "U"}
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className={`text-sm ${
+                                    isDarkMode
+                                      ? "text-gray-400"
+                                      : "text-gray-600"
+                                  } truncate`}
+                                >
+                                  {relatedVideo.owner?.fullName ||
+                                    "Unknown Creator"}
+                                </p>
+                                <div
+                                  className={`flex items-center gap-2 text-xs ${
+                                    isDarkMode
+                                      ? "text-gray-500"
+                                      : "text-gray-500"
+                                  }`}
+                                >
+                                  <span>
+                                    {formatViews(relatedVideo.views)} views
+                                  </span>
+                                  <span>•</span>
+                                  <span>
+                                    {formatDate(relatedVideo.createdAt)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Video Stats */}
-                        <div
-                          className={`flex items-center gap-1 sm:gap-2 text-xs ${
-                            isDarkMode ? "text-gray-500" : "text-gray-500"
-                          }`}
-                        >
-                          <span>{formatViews(relatedVideo.views)} views</span>
-                          <span>•</span>
-                          <span>{formatDate(relatedVideo.createdAt)}</span>
-                        </div>
+                        {/* Desktop Layout */}
+                        <div className="hidden lg:flex lg:gap-3 lg:items-start">
+                          {/* Desktop Thumbnail */}
+                          <div className="relative flex-shrink-0">
+                            <img
+                              src={relatedVideo.thumbnail?.url}
+                              alt={relatedVideo.title}
+                              className="w-40 h-24 object-cover rounded-lg transition-transform duration-300 "
+                            />
 
-                        {/* Description Preview */}
-                        {relatedVideo.description && (
-                          <p
-                            className={`text-xs ${
-                              isDarkMode ? "text-gray-500" : "text-gray-500"
-                            } line-clamp-2 mt-1`}
-                          >
-                            {relatedVideo.description}
-                          </p>
-                        )}
+                            {/* Duration Overlay */}
+                            {relatedVideo.duration && (
+                              <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded">
+                                {formatDuration(relatedVideo.duration)}
+                              </div>
+                            )}
+
+                            {/* Play Icon Overlay */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <div className="bg-black/50 rounded-full p-2 transform scale-90 group-hover:scale-100 transition-transform duration-200">
+                                <Play
+                                  size={16}
+                                  className="text-white fill-white ml-0.5"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Desktop Video Info */}
+                          <div className="flex-1 min-w-0 ">
+                            <h4
+                              className={`font-medium text-sm ${
+                                isDarkMode ? "text-white" : "text-gray-900"
+                              } line-clamp-2 mb-1 group-hover:text-blue-500 transition-colors duration-200`}
+                            >
+                              {relatedVideo.title}
+                            </h4>
+
+                            {/* Channel Info */}
+                            <div className="flex items-center gap-2 mb-2">
+                              {relatedVideo.owner?.avatar ? (
+                                <img
+                                  src={relatedVideo.owner.avatar}
+                                  alt={relatedVideo.owner.fullName}
+                                  className="w-6 h-6 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
+                                  {relatedVideo.owner?.fullName
+                                    ?.charAt(0)
+                                    ?.toUpperCase() || "U"}
+                                </div>
+                              )}
+                              <span
+                                className={`text-sm ${
+                                  isDarkMode ? "text-gray-400" : "text-gray-600"
+                                } truncate`}
+                              >
+                                {relatedVideo.owner?.fullName ||
+                                  "Unknown Creator"}
+                              </span>
+                            </div>
+
+                            {/* Video Stats */}
+                            <div
+                              className={`flex items-center gap-2 text-xs ${
+                                isDarkMode ? "text-gray-500" : "text-gray-500"
+                              }`}
+                            >
+                              <span>
+                                {formatViews(relatedVideo.views)} views
+                              </span>
+                              <span>•</span>
+                              <span>{formatDate(relatedVideo.createdAt)}</span>
+                            </div>
+
+                            {/* Description Preview - Desktop only */}
+                            {relatedVideo.description && (
+                              <p
+                                className={`text-xs ${
+                                  isDarkMode ? "text-gray-500" : "text-gray-500"
+                                } line-clamp-2 mt-1`}
+                              >
+                                {relatedVideo.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    ))
                 )}
               </div>
 
               {/* Show More Button */}
-              {relatedVideos.length > 0 && (
-                <div className="mt-6 text-center">
+              {relatedVideos.length > 5 && (
+                <div className="mt-6 text-center px-4 lg:px-0">
                   <button
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    onClick={handleShowMoreRelated}
+                    className={`px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 ${
                       isDarkMode
-                        ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        ? "bg-gray-700 text-gray-300 hover:bg-gray-600 shadow-lg hover:shadow-xl"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-lg hover:shadow-xl"
                     }`}
                   >
-                    Show More
+                    {showingAllRelated
+                      ? "Show Less"
+                      : `Show More (${
+                          relatedVideos.length - displayedVideosCount
+                        } more)`}
                   </button>
                 </div>
               )}

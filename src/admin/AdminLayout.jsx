@@ -88,7 +88,7 @@ const AdminLayout = () => {
   }
 
   return (
-    <div className="flex h-screen theme-bg-primary theme-transition">
+    <div className="flex h-screen overflow-hidden theme-bg-primary theme-transition">
       {/* Sidebar */}
       <div
         className={`${

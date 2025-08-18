@@ -217,7 +217,7 @@ const AdminUsers = () => {
       setActionUser(null);
 
       // Add success toast notification here
-      console.log("User deactivated successfully");
+      toast.success("User deactivated successfully");
     } catch (error) {
       console.error("Error deactivating user:", error);
       // Add error toast notification here
@@ -241,7 +241,7 @@ const AdminUsers = () => {
       );
 
       // Add success toast notification here
-      console.log("User activated successfully");
+      toast.success("User activated successfully");
     } catch (error) {
       console.error("Error activating user:", error);
       // Add error toast notification here
@@ -272,9 +272,9 @@ const AdminUsers = () => {
       setActionUser(null);
 
       // Add success toast notification here
-      console.log("User deleted successfully");
+      toast.success("User deleted successfully");
     } catch (error) {
-      console.error("Error deleting user:", error);
+      toast.error("Error deleting user:", error);
       // Add error toast notification here
     } finally {
       setActionLoading(false);
@@ -1238,20 +1238,15 @@ const AdminUsers = () => {
                 <p className="text-sm text-gray-600 mb-2">
                   You are about to deactivate:
                 </p>
-                <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 text-white dark:bg-gray-700">
                   <img
                     className="h-10 w-10 rounded-full object-cover"
                     src={actionUser.avatar}
                     alt={actionUser.fullName}
-                    onError={(e) => {
-                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        actionUser.fullName
-                      )}&background=random`;
-                    }}
                   />
                   <div>
                     <p className="font-medium">{actionUser.fullName}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm  text-gray-50">
                       @{actionUser.userName}
                     </p>
                   </div>
@@ -1272,7 +1267,7 @@ const AdminUsers = () => {
                   onChange={(e) => setDeactivationReason(e.target.value)}
                   placeholder="Please provide a reason for deactivating this user..."
                   rows={4}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2   ${
                     isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
                       : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
@@ -1282,13 +1277,21 @@ const AdminUsers = () => {
 
               <div
                 className={`p-4 rounded-lg ${
-                  isDarkMode ? "bg-red-900/20" : "bg-red-50"
+                  isDarkMode ? "bg-red-800/20" : "bg-red-50"
                 }`}
               >
-                <p className="text-sm text-red-600">
+                <p
+                  className={`  ${
+                    isDarkMode ? "text-sm text-white" : " text-red-600"
+                  }  `}
+                >
                   <strong>Warning:</strong> Deactivating this user will:
                 </p>
-                <ul className="text-sm text-red-600 mt-2 ml-4 list-disc">
+                <ul
+                  className={`  ${
+                    isDarkMode ? "text-sm text-white" : " text-red-600"
+                  }  mt-2 ml-4 list-disc`}
+                >
                   <li>Prevent them from logging in</li>
                   <li>Send them a notification email</li>
                   <li>Clear their active sessions</li>

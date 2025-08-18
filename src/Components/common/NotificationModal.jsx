@@ -16,6 +16,7 @@ import {
 import { getSubscribedChannelNotifications } from "../../services/api";
 import { useAuth } from "../../hooks/UseAuth";
 import { useTheme } from "../../context/ThemeContext";
+import { Link, useParams } from "react-router-dom";
 
 const NotificationModal = ({ isOpen, onClose }) => {
   const { token } = useAuth();
@@ -113,8 +114,6 @@ const NotificationModal = ({ isOpen, onClose }) => {
   const renderNotificationContent = (notification) => {
     const { notificationType, data, channel } = notification;
 
-    console.log("Rendering notification:", { notificationType, data, channel });
-
     switch (notificationType) {
       case "new_video":
         if (!data) {
@@ -141,50 +140,53 @@ const NotificationModal = ({ isOpen, onClose }) => {
             </div>
 
             {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="mb-2">
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  {channel?.fullName || "Unknown Channel"}
-                </span>
-                <span className="text-sm ml-1 text-gray-600 dark:text-gray-400">
-                  uploaded a new video
-                </span>
-              </div>
+            <Link to={`/video/${data._id}`} onClick={onClose}>
+              <div className="flex-1 min-w-0">
+                <div className="mb-2">
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    {channel?.fullName || "Unknown Channel"}
+                  </span>
+                  <span className="text-sm ml-1 text-gray-600 dark:text-gray-400">
+                    uploaded a new video
+                  </span>
+                </div>
 
-              <h3 className="text-sm sm:text-base font-medium line-clamp-2 mb-1 group-hover:text-blue-500 transition-colors text-gray-900 dark:text-gray-200">
-                {data.title || "Untitled Video"}
-              </h3>
+                <h3 className="text-sm sm:text-base font-medium line-clamp-2 mb-1 group-hover:text-blue-500 transition-colors text-gray-900 dark:text-gray-200">
+                  {data.title || "Untitled Video"}
+                </h3>
 
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                <span>
-                  {formatTimeAgo(data.createdAt || notification.timestamp)}
-                </span>
-                {data.views && (
-                  <>
-                    <span className="hidden sm:inline">•</span>
-                    <div className="flex items-center space-x-1">
-                      <Eye className="w-3 h-3" />
-                      <span>{formatViews(data.views)} views</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Video Thumbnail */}
-            <div className="flex-shrink-0 w-full sm:w-auto">
-              <div className="relative rounded-lg overflow-hidden group/video">
-                <img
-                  src={data.thumbnail?.url || data.thumbnail}
-                  alt={data.title || "Video thumbnail"}
-                  className="w-full sm:w-20 lg:w-24 h-32 sm:h-12 lg:h-16 object-cover transition-transform duration-300 group-hover/video:scale-105"
-                />
-                <div className="absolute inset-0 bg-transparent bg-opacity-0 group-hover/video:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
-                  <div className="transform scale-0 group-hover/video:scale-100 transition-transform duration-200">
-                    <Play className="w-6 h-6 sm:w-5 sm:h-5 text-white drop-shadow-lg" />
-                  </div>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                  <span>
+                    {formatTimeAgo(data.createdAt || notification.timestamp)}
+                  </span>
+                  {data.views && (
+                    <>
+                      <span className="hidden sm:inline">•</span>
+                      <div className="flex items-center space-x-1">
+                        <Eye className="w-3 h-3" />
+                        <span>{formatViews(data.views)} views</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
+            </Link>
+            {/* Video Thumbnail */}
+            <div className="flex-shrink-0 w-full sm:w-auto">
+              <Link to={`/video/${data._id}`} onClick={onClose}>
+                <div className="relative rounded-lg overflow-hidden group/video">
+                  <img
+                    src={data.thumbnail?.url || data.thumbnail}
+                    alt={data.title || "Video thumbnail"}
+                    className="w-full sm:w-20 lg:w-24 h-32 sm:h-12 lg:h-16 object-cover transition-transform duration-300 group-hover/video:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-transparent bg-opacity-0 group-hover/video:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
+                    <div className="transform scale-0 group-hover/video:scale-100 transition-transform duration-200">
+                      <Play className="w-6 h-6 sm:w-5 sm:h-5 text-white drop-shadow-lg" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
             </div>
           </div>
         );
@@ -262,78 +264,6 @@ const NotificationModal = ({ isOpen, onClose }) => {
             </div>
           </div>
         );
-        if (!data) {
-          console.error(
-            "Video data is missing for liked video notification:",
-            notification
-          );
-          return (
-            <div className="text-red-500 text-sm">
-              Error: Video data is missing
-            </div>
-          );
-        }
-
-        return (
-          <div className="flex flex-col sm:flex-row items-start space-y-3 sm:space-y-0 sm:space-x-4">
-            {/* Channel Avatar */}
-            <div className="flex-shrink-0">
-              <img
-                src={channel?.avatar}
-                alt={channel?.fullName || "Channel"}
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover shadow-sm"
-              />
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="mb-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  You liked
-                </span>
-                <span className="text-sm font-semibold ml-1 text-gray-700 dark:text-gray-300">
-                  {channel?.fullName || "Unknown Channel"}'s
-                </span>
-                <span className="text-sm ml-1 text-gray-600 dark:text-gray-400">
-                  video
-                </span>
-              </div>
-
-              <h3 className="text-sm sm:text-base font-medium line-clamp-2 mb-1 group-hover:text-pink-500 transition-colors text-gray-900 dark:text-gray-200">
-                {data.title || "Untitled Video"}
-              </h3>
-
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                <span>{formatTimeAgo(notification.timestamp)}</span>
-                {data.views && (
-                  <>
-                    <span className="hidden sm:inline">•</span>
-                    <div className="flex items-center space-x-1">
-                      <Eye className="w-3 h-3" />
-                      <span>{formatViews(data.views)} views</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Video Thumbnail */}
-            <div className="flex-shrink-0 w-full sm:w-auto">
-              <div className="relative rounded-lg overflow-hidden group/video">
-                <img
-                  src={data.thumbnail?.url || data.thumbnail}
-                  alt={data.title || "Video thumbnail"}
-                  className="w-full sm:w-20 lg:w-24 h-32 sm:h-12 lg:h-16 object-cover transition-transform duration-300 group-hover/video:scale-105"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover/video:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
-                  <div className="transform scale-0 group-hover/video:scale-100 transition-transform duration-200">
-                    <Heart className="w-6 h-6 sm:w-5 sm:h-5 text-pink-500 drop-shadow-lg fill-current" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
 
       case "new_subscriber":
         if (!data) {
@@ -379,10 +309,7 @@ const NotificationModal = ({ isOpen, onClose }) => {
             <div className="flex-shrink-0">
               <div className="relative">
                 <img
-                  src={
-                    channel?.avatar ||
-                    "https://via.placeholder.com/64x64/34a853/ffffff?text=YC"
-                  }
+                  src={channel?.avatar}
                   alt={channel?.fullName || "Your Channel"}
                   className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover shadow-sm"
                 />
@@ -581,9 +508,13 @@ const NotificationModal = ({ isOpen, onClose }) => {
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="relative">
-                  <div className="w-8 h-8 border-2 border-blue-200 rounded-full animate-spin">
-                    <div className="absolute top-0 left-0 w-8 h-8 border-2 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
-                  </div>
+                  <div
+                    className={`w-8 h-8 border-3 rounded-full animate-spin ${
+                      isDarkMode
+                        ? "border-gray-700 border-t-blue-400"
+                        : "border-gray-200 border-t-blue-600"
+                    }`}
+                  ></div>
                 </div>
               </div>
             ) : notifications.length === 0 ? (
@@ -650,60 +581,6 @@ const NotificationModal = ({ isOpen, onClose }) => {
               </div>
             )}
           </div>
-
-          {/* Footer with Pagination (commented out in original, keeping commented) */}
-          {/* {pagination.totalPages > 1 && (
-            <div className={`flex items-center justify-between p-4 border-t ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
-              <button
-                onClick={() => handleFilterChange("page", pagination.page - 1)}
-                disabled={!pagination.hasPrevPage}
-                className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
-                  pagination.hasPrevPage
-                    ? `${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600' : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'} border`
-                    : "opacity-50 cursor-not-allowed text-gray-400"
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>Prev</span>
-              </button>
-
-              <div className="flex items-center space-x-2">
-                {Array.from(
-                  { length: Math.min(3, pagination.totalPages) },
-                  (_, i) => {
-                    const pageNum = i + 1;
-                    const isActive = pageNum === pagination.page;
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => handleFilterChange("page", pageNum)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-all duration-200 ${
-                          isActive
-                            ? "bg-blue-600 text-white shadow-lg"
-                            : `${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600' : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'} border`
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-
-              <button
-                onClick={() => handleFilterChange("page", pagination.page + 1)}
-                disabled={!pagination.hasNextPage}
-                className={`flex items-center space-x-1 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
-                  pagination.hasNextPage
-                    ? `${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600' : 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300'} border`
-                    : "opacity-50 cursor-not-allowed text-gray-400"
-                }`}
-              >
-                <span>Next</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )} */}
         </div>
       </div>
 

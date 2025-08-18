@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import {
   Eye,
@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 const VideoCard = ({ video }) => {
+  const navigate = useNavigate();
   const { isDarkMode } = useTheme();
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -178,7 +179,7 @@ const VideoCard = ({ video }) => {
       <Link to={`/video/${video._id}`} className="block">
         {/* Image Card - Rounded with shadow and hover video functionality */}
         <div
-          className={`relative aspect-video overflow-hidden rounded-xl ${
+          className={`relative aspect-video overflow-hidden sm:rounded-none lg:rounded-xl ${
             isDarkMode ? "bg-gray-700" : "bg-gray-200"
           } shadow-md group-hover:shadow-lg transition-shadow duration-300 mb-3`}
           onMouseEnter={() => handleVideoHover(true)}
@@ -264,142 +265,144 @@ const VideoCard = ({ video }) => {
       </Link>
 
       {/* Text Content - Outside the card */}
-      <div className="flex items-start gap-3 space-y-0">
-        {/* Left Section - Avatar */}
-        <div className="flex-shrink-0">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
-            <img
-              src={video.createdBy.avatar}
-              alt={video.createdBy?.fullName || "Unknown Channel"}
-              className="w-full h-full object-cover rounded-full"
-            />
-          </div>
-        </div>
-
-        {/* Middle Section - Video Info */}
-        <div className="flex-1 min-w-0 space-y-1">
-          {/* Video Title */}
-          <h3
-            className={`font-bold ${
-              isDarkMode
-                ? "text-white group-hover:text-gray-300"
-                : "text-gray-900 group-hover:text-gray-600"
-            } text-xl leading-tight line-clamp-2 transition-colors`}
-          >
-            {video.title || "Untitled Video"}
-          </h3>
-
-          {/* Creator Full Name */}
-          <p
-            className={`${
-              isDarkMode ? "text-gray-300" : "text-gray-900"
-            } text-sm font-semibold truncate`}
-          >
-            {video.createdBy?.fullName || "Unknown Channel"}
-          </p>
-
-          {/* Video Stats - Views and Date */}
-          <div
-            className={`flex items-center gap-4 text-xs ${
-              isDarkMode ? "text-gray-400" : "text-gray-700"
-            }`}
-          >
-            <div className="flex items-center gap-1">
-              <Eye size={12} />
-              <span>{formatViews(video.views)} views</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Calendar size={12} />
-              <span>{formatDate(video.createdAt)}</span>
+      <Link to={`/channel/${video.createdBy._id}`}>
+        <div className="flex items-start gap-3 space-y-0">
+          {/* Left Section - Avatar */}
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+              <img
+                src={video.createdBy.avatar}
+                alt={video.createdBy?.fullName || "Unknown Channel"}
+                className="w-full h-full object-cover rounded-full"
+              />
             </div>
           </div>
-        </div>
 
-        {/* Right Section - Share Menu */}
-        <div className="flex-shrink-0 relative">
-          <button
-            ref={buttonRef}
-            onClick={handleShareClick}
-            className={`p-2 rounded-full ${
-              isDarkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
-            } transition-colors`}
-          >
-            <MoreVertical
-              size={16}
-              className={`${isDarkMode ? "text-gray-400" : "text-gray-500"}`}
-            />
-          </button>
-
-          {/* Share Dropdown Menu */}
-          {showShareMenu && (
-            <div
-              ref={menuRef}
-              className={`absolute right-0 top-full mt-1 w-48 ${
+          {/* Middle Section - Video Info */}
+          <div className="flex-1 min-w-0 space-y-1">
+            {/* Video Title */}
+            <h3
+              className={`font-bold ${
                 isDarkMode
-                  ? "bg-gray-800 border-gray-700"
-                  : "bg-white border-gray-200"
-              } rounded-lg shadow-lg border py-2 z-50`}
+                  ? "text-white group-hover:text-gray-300"
+                  : "text-gray-900 group-hover:text-gray-600"
+              } text-xl leading-tight line-clamp-2 transition-colors`}
             >
-              {/* Copy Link */}
-              <button
-                onClick={handleCopyLink}
-                className={`w-full px-4 py-2 text-left text-sm ${
-                  isDarkMode
-                    ? "text-gray-300 hover:bg-gray-700"
-                    : "text-gray-700 hover:bg-gray-100"
-                } flex items-center gap-3`}
-              >
-                <Copy size={16} />
-                {copySuccess ? "Copied!" : "Copy link"}
-              </button>
+              {video.title || "Untitled Video"}
+            </h3>
 
-              {/* Divider */}
-              <div
-                className={`border-t ${
-                  isDarkMode ? "border-gray-600" : "border-gray-200"
-                } my-1`}
-              ></div>
+            {/* Creator Full Name */}
+            <p
+              className={`${
+                isDarkMode ? "text-gray-300" : "text-gray-900"
+              } text-sm font-semibold truncate`}
+            >
+              {video.createdBy?.fullName || "Unknown Channel"}
+            </p>
 
-              {/* Social Share Options */}
-              <button
-                onClick={handleSocialShare("facebook")}
-                className={`w-full px-4 py-2 text-left text-sm ${
-                  isDarkMode
-                    ? "text-gray-300 hover:bg-gray-700"
-                    : "text-gray-700 hover:bg-gray-100"
-                } flex items-center gap-3`}
-              >
-                <Facebook size={16} className="text-blue-600" />
-                Share on Facebook
-              </button>
-
-              <button
-                onClick={handleSocialShare("twitter")}
-                className={`w-full px-4 py-2 text-left text-sm ${
-                  isDarkMode
-                    ? "text-gray-300 hover:bg-gray-700"
-                    : "text-gray-700 hover:bg-gray-100"
-                } flex items-center gap-3`}
-              >
-                <Twitter size={16} className="text-blue-400" />
-                Share on Twitter
-              </button>
-
-              <button
-                onClick={handleSocialShare("whatsapp")}
-                className={`w-full px-4 py-2 text-left text-sm ${
-                  isDarkMode
-                    ? "text-gray-300 hover:bg-gray-700"
-                    : "text-gray-700 hover:bg-gray-100"
-                } flex items-center gap-3`}
-              >
-                <MessageCircle size={16} className="text-green-500" />
-                Share on WhatsApp
-              </button>
+            {/* Video Stats - Views and Date */}
+            <div
+              className={`flex items-center gap-4 text-xs ${
+                isDarkMode ? "text-gray-400" : "text-gray-700"
+              }`}
+            >
+              <div className="flex items-center gap-1">
+                <Eye size={12} />
+                <span>{formatViews(video.views)} views</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Calendar size={12} />
+                <span>{formatDate(video.createdAt)}</span>
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Right Section - Share Menu */}
+          <div className="flex-shrink-0  relative">
+            <button
+              ref={buttonRef}
+              onClick={handleShareClick}
+              className={`p-2 rounded-full ${
+                isDarkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"
+              } transition-colors`}
+            >
+              <MoreVertical
+                size={16}
+                className={`${isDarkMode ? "text-gray-400" : "text-gray-500"}`}
+              />
+            </button>
+
+            {/* Share Dropdown Menu */}
+            {showShareMenu && (
+              <div
+                ref={menuRef}
+                className={`absolute right-0 -top-24  mt-1 w-48 ${
+                  isDarkMode
+                    ? "bg-gray-800 border-gray-700"
+                    : "bg-white border-gray-200"
+                } rounded-lg shadow-lg border py-2 z-50`}
+              >
+                {/* Copy Link */}
+                <button
+                  onClick={handleCopyLink}
+                  className={`w-full px-4 py-2 text-left text-sm ${
+                    isDarkMode
+                      ? "text-gray-300 hover:bg-gray-700"
+                      : "text-gray-700 hover:bg-gray-100"
+                  } flex items-center gap-3`}
+                >
+                  <Copy size={16} />
+                  {copySuccess ? "Copied!" : "Copy link"}
+                </button>
+
+                {/* Divider */}
+                <div
+                  className={`border-t ${
+                    isDarkMode ? "border-gray-600" : "border-gray-200"
+                  } my-1`}
+                ></div>
+
+                {/* Social Share Options */}
+                <button
+                  onClick={handleSocialShare("facebook")}
+                  className={`w-full px-4 py-2 text-left text-sm ${
+                    isDarkMode
+                      ? "text-gray-300 hover:bg-gray-700"
+                      : "text-gray-700 hover:bg-gray-100"
+                  } flex items-center gap-3`}
+                >
+                  <Facebook size={16} className="text-blue-600" />
+                  Share on Facebook
+                </button>
+
+                <button
+                  onClick={handleSocialShare("twitter")}
+                  className={`w-full px-4 py-2 text-left text-sm ${
+                    isDarkMode
+                      ? "text-gray-300 hover:bg-gray-700"
+                      : "text-gray-700 hover:bg-gray-100"
+                  } flex items-center gap-3`}
+                >
+                  <Twitter size={16} className="text-blue-400" />
+                  Share on Twitter
+                </button>
+
+                <button
+                  onClick={handleSocialShare("whatsapp")}
+                  className={`w-full px-4 py-2 text-left text-sm ${
+                    isDarkMode
+                      ? "text-gray-300 hover:bg-gray-700"
+                      : "text-gray-700 hover:bg-gray-100"
+                  } flex items-center gap-3`}
+                >
+                  <MessageCircle size={16} className="text-green-500" />
+                  Share on WhatsApp
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </Link>
     </div>
   );
 };

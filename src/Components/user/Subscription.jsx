@@ -35,12 +35,6 @@ const Subscription = () => {
   const fetchSubscribers = async (page = 1) => {
     setLoading(true);
     try {
-      console.log("Fetching subscribers with:", {
-        token,
-        channelId,
-        page,
-        limit,
-      });
       const response = await getUserChannelSubscriber(
         token,
         channelId,

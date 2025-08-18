@@ -360,13 +360,10 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
 
     try {
       setLoading(true);
-      console.log("Updating playlist:", playlist._id, editForm);
       await updatePlaylist(token, playlist._id, editForm);
       setShowEditForm(false);
-      console.log("Playlist updated, calling refresh");
       onRefresh();
     } catch (error) {
-      console.error("Error updating playlist:", error);
       toast.error("Failed to update playlist. Please try again.");
     } finally {
       setLoading(false);
@@ -385,6 +382,7 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
     try {
       setLoading(true);
       await deletePlaylist(token, playlist._id);
+      toast.success("Playlist delete successfully");
       onRefresh();
     } catch (error) {
       console.error("Error deleting playlist:", error);
@@ -425,7 +423,7 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
         }`}
       >
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-gray-600 rounded-xl flex items-center justify-center">
             <svg
               className="w-5 h-5 text-white"
               fill="none"
@@ -567,12 +565,12 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
                 }}
               />
               <div
-                className="w-full h-52 bg-gradient-to-br from-gray-500 via-gray-600 to-gray-500 flex items-center justify-center relative overflow-hidden"
+                className="w-full h-52 bg-gradient-to-br from-blue-500  to-gray-600 flex items-center justify-center relative overflow-hidden"
                 style={{
                   display: "none",
                 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-purple-600/20 to-pink-500/20 animate-pulse"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-gray-600 animate-pulse"></div>
                 <svg
                   className="w-20 h-20 text-white/90 z-10"
                   fill="none"
@@ -698,7 +696,7 @@ export default function PlaylistCard({ playlist, onRefresh, token }) {
             <div className="flex gap-3">
               <Link
                 to={`/playlists/${playlist._id}`}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-semibold text-center transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-gray-600 hover:from-blue-700 hover:to-gray-700 text-white py-3 px-4 rounded-xl font-semibold text-center transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
               >
                 <div className="flex items-center justify-center gap-2">
                   <svg

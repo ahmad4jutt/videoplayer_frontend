@@ -128,8 +128,6 @@ const AdminLogin = () => {
     const errorData = error.response.data;
     const message = errorData?.message || "";
 
-    console.log("Checking deactivation - Status:", status, "Message:", message);
-
     // Check for 403 status (Forbidden) which indicates deactivated account
     if (status === 403) {
       // Check if the message contains deactivation keywords
@@ -168,8 +166,6 @@ const AdminLogin = () => {
         password: formData.password,
       });
 
-      console.log("Admin login response:", response);
-
       // Navigate to admin dashboard on successful login
       navigate("/admin/dashboard");
     } catch (error) {
@@ -177,7 +173,6 @@ const AdminLogin = () => {
 
       // Check if the error is due to deactivated account
       if (isAccountDeactivated(error)) {
-        console.log("Account deactivated - showing modal");
         setShowBlockedModal(true);
         return;
       }
