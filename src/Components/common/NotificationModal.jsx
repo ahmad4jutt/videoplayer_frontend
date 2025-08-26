@@ -3,11 +3,7 @@ import {
   Bell,
   X,
   Play,
-  Clock,
   Settings,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
   Heart,
   UserPlus,
   Video,
@@ -143,7 +139,11 @@ const NotificationModal = ({ isOpen, onClose }) => {
             <Link to={`/video/${data._id}`} onClick={onClose}>
               <div className="flex-1 min-w-0">
                 <div className="mb-2">
-                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  <span
+                    className={`text-sm font-bold   ${
+                      isDarkMode ? "text-gray-200" : "text-gray-500"
+                    } `}
+                  >
                     {channel?.fullName || "Unknown Channel"}
                   </span>
                   <span className="text-sm ml-1 text-gray-600 dark:text-gray-400">
@@ -151,7 +151,11 @@ const NotificationModal = ({ isOpen, onClose }) => {
                   </span>
                 </div>
 
-                <h3 className="text-sm sm:text-base font-medium line-clamp-2 mb-1 group-hover:text-blue-500 transition-colors text-gray-900 dark:text-gray-200">
+                <h3
+                  className={`text-sm sm:text-base font-semibold line-clamp-2 mb-1 group-hover:text-blue-500 transition-colors  ${
+                    isDarkMode ? "text-gray-200" : "text-gray-700"
+                  }`}
+                >
                   {data.title || "Untitled Video"}
                 </h3>
 
@@ -206,13 +210,9 @@ const NotificationModal = ({ isOpen, onClose }) => {
 
         return (
           <div className="flex flex-col sm:flex-row items-start space-y-3 sm:space-y-0 sm:space-x-4">
-            {/* Liker Avatar - Person who liked your video */}
             <div className="flex-shrink-0">
               <img
-                src={
-                  data.liker?.avatar ||
-                  "https://via.placeholder.com/48x48/4285f4/ffffff?text=U"
-                }
+                src={data.liker?.avatar}
                 alt={data.liker?.fullName || "User"}
                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover shadow-sm"
               />
@@ -221,15 +221,27 @@ const NotificationModal = ({ isOpen, onClose }) => {
             {/* Content */}
             <div className="flex-1 min-w-0">
               <div className="mb-2">
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <span
+                  className={`text-sm font-bold ${
+                    isDarkMode ? "text-gray-500" : "text-gray-700"
+                  }`}
+                >
                   {data.liker?.fullName || "Someone"}
                 </span>
-                <span className="text-sm ml-1 text-gray-600 dark:text-gray-400">
+                <span
+                  className={`text-sm ml-1  ${
+                    isDarkMode ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
                   liked your video
                 </span>
               </div>
 
-              <h3 className="text-sm sm:text-base font-medium line-clamp-2 mb-1 group-hover:text-pink-500 transition-colors text-gray-900 dark:text-gray-200">
+              <h3
+                className={` text-sm sm:text-base font-medium line-clamp-2 mb-1 group-hover:text-pink-500 transition-colors   ${
+                  isDarkMode ? "text-gray-200" : "text-gray-700"
+                }`}
+              >
                 {data.video?.title || "Untitled Video"}
               </h3>
 
@@ -292,10 +304,18 @@ const NotificationModal = ({ isOpen, onClose }) => {
             {/* Content */}
             <div className="flex-1 min-w-0">
               <div className="mb-2">
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <span
+                  className={`text-sm font-semibold   ${
+                    isDarkMode ? "text-gray-300" : "text-gray-700"
+                  }`}
+                >
                   {data.fullName || "Unknown User"}
                 </span>
-                <span className="text-sm ml-1 text-gray-600 dark:text-gray-400">
+                <span
+                  className={`text-sm   ${
+                    isDarkMode ? "text-gray-300" : "text-gray-700"
+                  }`}
+                >
                   subscribed to your channel
                 </span>
               </div>

@@ -13,6 +13,9 @@ import {
   List,
   ChevronDown,
   ArrowLeft,
+  X,
+  MoreVertical,
+  Share2,
 } from "lucide-react";
 import { useAuth } from "../../hooks/UseAuth";
 import { useNavigate } from "react-router-dom";
@@ -31,10 +34,9 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("recent");
+  const [activeTab, setActiveTab] = useState("all");
   const [actionLoading, setActionLoading] = useState(false);
-  const [viewMode, setViewMode] = useState("grid");
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(null);
   const { token } = useAuth();
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
@@ -44,8 +46,8 @@ const History = () => {
   }, []);
 
   useEffect(() => {
-    filterAndSortHistory();
-  }, [watchHistory, searchTerm, sortBy]);
+    filterHistory();
+  }, [watchHistory, searchTerm, activeTab]);
 
   const fetchWatchHistory = async () => {
     try {
@@ -61,7 +63,7 @@ const History = () => {
     }
   };
 
-  const filterAndSortHistory = () => {
+  const filterHistory = () => {
     let filtered = [...watchHistory];
 
     if (searchTerm) {
@@ -72,20 +74,14 @@ const History = () => {
       );
     }
 
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "recent":
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        case "oldest":
-          return new Date(a.createdAt) - new Date(b.createdAt);
-        case "views":
-          return b.views - a.views;
-        case "duration":
-          return b.duration - a.duration;
-        default:
-          return 0;
-      }
-    });
+    if (activeTab === "videos") {
+      // Filter for videos only (assuming duration > 60 seconds)
+      filtered = filtered.filter((video) => video.duration > 60);
+    } else if (activeTab === "shorts") {
+      // Filter for shorts (assuming duration <= 60 seconds)
+      filtered = filtered.filter((video) => video.duration <= 60);
+    }
+
     setFilteredHistory(filtered);
   };
 
@@ -96,9 +92,7 @@ const History = () => {
     const secs = totalSeconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
-  const handleBack = () => {
-    navigate(-1);
-  };
+
   const formatViews = (views) => {
     if (views >= 1000000) {
       return `${(views / 1000000).toFixed(1)}M`;
@@ -117,6 +111,38 @@ const History = () => {
     });
   };
 
+  const isToday = (dateString) => {
+    const today = new Date();
+    const videoDate = new Date(dateString);
+    return today.toDateString() === videoDate.toDateString();
+  };
+
+  const isYesterday = (dateString) => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const videoDate = new Date(dateString);
+    return yesterday.toDateString() === videoDate.toDateString();
+  };
+
+  const groupVideosByDate = (videos) => {
+    const today = [];
+    const yesterday = [];
+    const older = [];
+
+    videos.forEach((video) => {
+      const watchTimestamp = video.watchedAt || video.updatedAt;
+      if (isToday(watchTimestamp)) {
+        today.push(video);
+      } else if (isYesterday(watchTimestamp)) {
+        yesterday.push(video);
+      } else {
+        older.push(video);
+      }
+    });
+
+    return { today, yesterday, older };
+  };
+
   const handleClearHistory = async () => {
     if (
       window.confirm(
@@ -129,6 +155,7 @@ const History = () => {
         setWatchHistory([]);
         setFilteredHistory([]);
         setError(null);
+        toast.success("Watch history cleared successfully");
       } catch (err) {
         setError("Failed to clear watch history. Please try again.");
         console.error("Error clearing watch history:", err);
@@ -143,26 +170,20 @@ const History = () => {
       event.preventDefault();
       event.stopPropagation();
     }
-    if (
-      window.confirm(
-        "Are you sure you want to remove this video from your watch history?"
-      )
-    ) {
-      try {
-        setActionLoading(true);
-        await removeFromWatchHistory(videoId, token);
-        const updatedHistory = watchHistory.filter(
-          (video) => video._id !== videoId
-        );
-        setWatchHistory(updatedHistory);
-        setError(null);
-        toast.success("Video deleted successfully");
-      } catch (err) {
-        setError("Failed to remove video from history. Please try again.");
-        console.error("Error removing video from history:", err);
-      } finally {
-        setActionLoading(false);
-      }
+    try {
+      setActionLoading(true);
+      await removeFromWatchHistory(videoId, token);
+      const updatedHistory = watchHistory.filter(
+        (video) => video._id !== videoId
+      );
+      setWatchHistory(updatedHistory);
+      setError(null);
+      toast.success("Video removed from history");
+    } catch (err) {
+      setError("Failed to remove video from history. Please try again.");
+      console.error("Error removing video from history:", err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -170,102 +191,215 @@ const History = () => {
     navigate(`/video/${videoId}`);
   };
 
-  const sortOptions = [
-    { value: "recent", label: "Most Recent" },
-    { value: "oldest", label: "Oldest First" },
-    { value: "views", label: "Most Views" },
-    { value: "duration", label: "Duration" },
-  ];
+  const handleShare = (video, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (navigator.share) {
+      navigator.share({
+        title: video.title,
+        url: `${window.location.origin}/video/${video._id}`,
+      });
+    } else {
+      navigator.clipboard.writeText(
+        `${window.location.origin}/video/${video._id}`
+      );
+      toast.success("Link copied to clipboard");
+    }
+    setShowMoreMenu(null);
+  };
+
+  const VideoCard = ({ video }) => (
+    <div
+      className="group flex gap-4 py-2 cursor-pointer relative"
+      onClick={() => handleVideoClick(video._id)}
+    >
+      {/* Thumbnail */}
+      <div className="relative flex-shrink-0">
+        <img
+          src={video.thumbnail?.url}
+          alt={video.title}
+          className="w-40 h-24 object-cover rounded-lg bg-gray-200"
+        />
+
+        {/* Play Overlay */}
+        <div className="absolute inset-0 bg-transparent bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg flex items-center justify-center">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="bg-transparent bg-opacity-70 rounded-full p-2">
+              <Play className="text-white fill-current" size={16} />
+            </div>
+          </div>
+        </div>
+
+        {/* Duration */}
+        <div className="absolute bottom-1 right-0 bg-black bg-opacity-80 text-white text-xs px-1.5 py-0.5 rounded">
+          {formatDuration(video.duration)}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <h3
+          className={`font-medium text-sm line-clamp-2 mb-1 ${
+            isDarkMode ? "text-white" : "text-gray-900"
+          }`}
+        >
+          {video.title}
+        </h3>
+
+        <p
+          className={`text-xs mb-1 ${
+            isDarkMode ? "text-gray-400" : "text-gray-600"
+          }`}
+        >
+          {video.owner?.fullName}
+        </p>
+
+        <p
+          className={`text-xs mb-2 ${
+            isDarkMode ? "text-gray-400" : "text-gray-600"
+          }`}
+        >
+          {formatViews(video.views)} views
+        </p>
+
+        <p
+          className={`text-xs line-clamp-2 ${
+            isDarkMode ? "text-gray-500" : "text-gray-500"
+          }`}
+        >
+          {video.description}
+        </p>
+      </div>
+
+      {/* More Menu */}
+      <div className="relative">
+        {/* Remove Button */}
+        <button
+          onClick={(e) => handleRemoveFromHistory(video._id, e)}
+          className={`absolute left-1 top-7 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity ${
+            isDarkMode
+              ? "text-gray-400 hover:text-white hover:bg-gray-700"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+          title="Remove from Watch history"
+        >
+          <X size={16} />
+        </button>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowMoreMenu(showMoreMenu === video._id ? null : video._id);
+          }}
+          className={`p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity ${
+            isDarkMode
+              ? "text-gray-400 hover:text-white hover:bg-gray-700"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          <MoreVertical size={16} />
+        </button>
+
+        {showMoreMenu === video._id && (
+          <div
+            className={`absolute right-0 top-8 w-48 rounded-lg shadow-lg border z-20 ${
+              isDarkMode
+                ? "bg-gray-800 border-gray-700"
+                : "bg-white border-gray-200"
+            }`}
+          >
+            <button
+              onClick={(e) => handleShare(video, e)}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-opacity-50 ${
+                isDarkMode
+                  ? "text-gray-300 hover:bg-gray-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <Share2 size={16} />
+              Share
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
       <div
-        className={`min-h-screen ${
-          isDarkMode
-            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-            : "bg-gradient-to-br from-gray-50 via-white to-gray-100"
-        }`}
+        className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-white"}`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header Skeleton */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
+        <div className="flex">
+          {/* Left Section Skeleton */}
+          <div className="w-full lg:w-[55%] p-6">
+            <div
+              className={`w-48 h-8 rounded animate-pulse mb-6 ${
+                isDarkMode ? "bg-gray-700" : "bg-gray-200"
+              }`}
+            ></div>
+            <div className="flex gap-8 mb-8">
+              {[...Array(3)].map((_, i) => (
                 <div
-                  className={`w-10 h-10 rounded-lg animate-pulse ${
+                  key={i}
+                  className={`w-16 h-6 rounded animate-pulse ${
                     isDarkMode ? "bg-gray-700" : "bg-gray-200"
                   }`}
                 ></div>
-                <div
-                  className={`w-48 h-8 rounded-lg animate-pulse ${
-                    isDarkMode ? "bg-gray-700" : "bg-gray-200"
-                  }`}
-                ></div>
-              </div>
-              <div
-                className={`w-32 h-10 rounded-lg animate-pulse ${
-                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
-                }`}
-              ></div>
+              ))}
             </div>
-
-            {/* Search Bar Skeleton */}
-            <div className="flex flex-col lg:flex-row gap-4 mb-6">
-              <div
-                className={`flex-1 h-12 rounded-xl animate-pulse ${
-                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
-                }`}
-              ></div>
-              <div
-                className={`w-40 h-12 rounded-xl animate-pulse ${
-                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
-                }`}
-              ></div>
-            </div>
-          </div>
-
-          {/* Grid Skeleton */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(12)].map((_, index) => (
-              <div
-                key={index}
-                className={`backdrop-blur-sm rounded-2xl overflow-hidden border ${
-                  isDarkMode
-                    ? "bg-gray-800/50 border-gray-700/50"
-                    : "bg-white/50 border-gray-200/50"
-                }`}
-              >
-                <div
-                  className={`h-48 animate-pulse ${
-                    isDarkMode ? "bg-gray-700" : "bg-gray-200"
-                  }`}
-                ></div>
-                <div className="p-5 space-y-3">
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex gap-4">
                   <div
-                    className={`h-4 rounded animate-pulse ${
+                    className={`w-40 h-24 rounded animate-pulse ${
                       isDarkMode ? "bg-gray-700" : "bg-gray-200"
                     }`}
                   ></div>
-                  <div
-                    className={`h-4 rounded w-3/4 animate-pulse ${
-                      isDarkMode ? "bg-gray-700" : "bg-gray-200"
-                    }`}
-                  ></div>
-                  <div className="flex justify-between">
+                  <div className="flex-1 space-y-2">
                     <div
-                      className={`h-3 rounded w-16 animate-pulse ${
+                      className={`w-3/4 h-4 rounded animate-pulse ${
                         isDarkMode ? "bg-gray-700" : "bg-gray-200"
                       }`}
                     ></div>
                     <div
-                      className={`h-3 rounded w-20 animate-pulse ${
+                      className={`w-1/2 h-3 rounded animate-pulse ${
+                        isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                      }`}
+                    ></div>
+                    <div
+                      className={`w-1/4 h-3 rounded animate-pulse ${
                         isDarkMode ? "bg-gray-700" : "bg-gray-200"
                       }`}
                     ></div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          {/* Right Section Skeleton */}
+          <div
+            className={`hidden lg:block w-[45%] fixed right-0 top-0 h-screen border-l ${
+              isDarkMode
+                ? "border-gray-700 bg-gray-900"
+                : "border-gray-200 bg-white"
+            }`}
+          >
+            <div className="p-6">
+              <div
+                className={`w-full h-10 rounded animate-pulse mb-6 pb-4 border-b ${
+                  isDarkMode
+                    ? "bg-gray-700 border-gray-700"
+                    : "bg-gray-200 border-gray-200"
+                }`}
+              ></div>
+              <div
+                className={`w-32 h-6 rounded animate-pulse ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                }`}
+              ></div>
+            </div>
           </div>
         </div>
       </div>
@@ -275,49 +409,26 @@ const History = () => {
   if (error) {
     return (
       <div
-        className={`min-h-screen flex items-center justify-center px-4 ${
-          isDarkMode
-            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-            : "bg-gradient-to-br from-gray-50 via-white to-gray-100"
+        className={`min-h-screen flex items-center justify-center ${
+          isDarkMode ? "bg-gray-900" : "bg-white"
         }`}
       >
-        <div
-          className={`backdrop-blur-sm rounded-3xl border p-12 text-center max-w-md w-full ${
-            isDarkMode
-              ? "bg-gray-800/50 border-gray-700/50"
-              : "bg-white/50 border-gray-200/50"
-          }`}
-        >
-          <div
-            className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${
-              isDarkMode ? "bg-red-500/20" : "bg-red-100"
-            }`}
-          >
-            <div
-              className={`text-3xl ${
-                isDarkMode ? "text-red-400" : "text-red-500"
-              }`}
-            >
-              ⚠️
-            </div>
-          </div>
+        <div className="text-center">
           <h2
-            className={`text-2xl font-bold mb-4 ${
-              isDarkMode ? "text-gray-100" : "text-gray-800"
+            className={`text-xl font-semibold mb-4 ${
+              isDarkMode ? "text-white" : "text-gray-900"
             }`}
           >
             Something went wrong
           </h2>
           <p
-            className={`mb-8 leading-relaxed ${
-              isDarkMode ? "text-gray-400" : "text-gray-600"
-            }`}
+            className={`mb-6 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}
           >
             {error}
           </p>
           <button
             onClick={fetchWatchHistory}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200 transform hover:scale-105"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
           >
             Try Again
           </button>
@@ -326,283 +437,202 @@ const History = () => {
     );
   }
 
+  const { today, yesterday, older } = groupVideosByDate(filteredHistory);
+  // desktop
   return (
     <div
-      className={`min-h-screen ${
-        isDarkMode
-          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-          : "bg-gradient-to-br from-gray-50 via-white to-gray-100"
-      }`}
+      className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-white"}`}
+      onClick={() => setShowMoreMenu(null)}
     >
-      <div className="flex items-center gap-4">
-        <button
-          onClick={handleBack}
-          className={`p-2 rounded-full transition-colors duration-200 ${
-            isDarkMode
-              ? "hover:bg-gray-800 text-gray-400 hover:text-white"
-              : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          <ArrowLeft size={20} />
-        </button>
-      </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-gray-400 to-gray-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Clock className="text-white" size={24} />
-              </div>
-              <div>
-                <h1
-                  className={` ${
-                    isDarkMode ? "text-gray-100" : "text-gray-800"
-                  } text-3xl sm:text-4xl font-bold  tracking-tight`}
-                >
-                  Watch History
-                </h1>
-                <p className="text-gray-400 mt-1">
-                  {filteredHistory.length} of {watchHistory.length} videos
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={handleClearHistory}
-              disabled={actionLoading || watchHistory.length === 0}
-              className={`flex items-center gap-2 border px-6 py-3 rounded-xl transition-all duration-200 font-medium backdrop-blur-sm ${
-                isDarkMode
-                  ? "bg-red-500/20 hover:bg-red-500/30 disabled:bg-gray-700/30 text-red-400 disabled:text-gray-500 border-red-500/30 disabled:border-gray-600/30"
-                  : "bg-transparent hover:bg-red-100 disabled:bg-gray-100 text-red-600 disabled:text-gray-400 border-red-200 disabled:border-gray-300"
-              } disabled:cursor-not-allowed`}
-            >
-              <Trash2 size={18} />
-              {actionLoading ? "Clearing..." : "Clear All"}
-            </button>
-          </div>
-
-          {/* Search and Controls */}
-          <div className="flex flex-col lg:flex-row gap-4 mb-6">
-            {/* Search Bar */}
-            <div className="relative flex-1">
-              <Search
-                className={`absolute left-4 top-1/2 transform -translate-y-1/2 ${
-                  isDarkMode ? "text-gray-400" : "text-gray-500"
-                }`}
-                size={20}
-              />
-              <input
-                type="text"
-                placeholder="Search videos, creators, or topics..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full pl-12 pr-4 py-4 backdrop-blur-sm border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-200 text-sm ${
-                  isDarkMode
-                    ? "bg-gray-800/50 border-gray-700/50 text-gray-100 placeholder-gray-400"
-                    : "bg-white/50 border-gray-200 text-gray-900 placeholder-gray-500"
-                }`}
-              />
-            </div>
-
-            {/* Controls */}
-            <div className="flex gap-3">
-              {/* View Toggle */}
-              <div
-                className={`flex rounded-xl p-1 ${
-                  isDarkMode
-                    ? "bg-gray-800/50 backdrop-blur-sm border border-gray-700/50"
-                    : "bg-white/50 backdrop-blur-sm border border-gray-200"
-                }`}
-              >
+      {/* Header */}
+      <h1
+        className={`text-2xl pt-6 pr-8 pl-8 lg:text-3xl font-bold font-sans  ${
+          isDarkMode ? "text-white" : "text-gray-900"
+        }`}
+      >
+        Watch history
+      </h1>
+      <div className="flex flex-col-reverse lg:flex-row min-h-screen">
+        {/* Left Section - 55% */}
+        <div className="w-full lg:w-[55%] lg:overflow-y-auto scrollbar-hide lg:max-h-screen">
+          <div className="p-4 lg:p-6 lg:pl-12 pb-20 lg:pb-6">
+            {/* Tabs */}
+            <div className="flex gap-6 lg:gap-8 mb-8 border-b border-gray-200 dark:border-gray-700">
+              {[
+                { key: "all", label: "All" },
+                { key: "videos", label: "Videos" },
+                { key: "shorts", label: "Shorts" },
+              ].map((tab) => (
                 <button
-                  onClick={() => setViewMode("grid")}
-                  className={`p-3 rounded-lg transition-all duration-200 ${
-                    viewMode === "grid"
-                      ? "bg-gray-600 text-white shadow-lg"
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab.key
+                      ? isDarkMode
+                        ? "text-white border-white"
+                        : "text-gray-900 border-gray-900"
                       : isDarkMode
-                      ? "text-gray-400 hover:text-gray-300"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "text-gray-400 border-transparent hover:text-gray-300"
+                      : "text-gray-600 border-transparent hover:text-gray-900"
                   }`}
                 >
-                  <Grid size={18} />
+                  {tab.label}
                 </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`p-3 rounded-lg transition-all duration-200 ${
-                    viewMode === "list"
-                      ? "bg-gray-500 text-white shadow-lg"
-                      : isDarkMode
-                      ? "text-gray-400 hover:text-gray-300"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  <List size={18} />
-                </button>
-              </div>
+              ))}
+            </div>
+
+            {/* Content */}
+            <div className="pl-6">
+              {filteredHistory.length === 0 ? (
+                <div className="text-center py-20">
+                  <Clock
+                    className={`mx-auto mb-4 ${
+                      isDarkMode ? "text-gray-500" : "text-gray-400"
+                    }`}
+                    size={48}
+                  />
+                  <h2
+                    className={`text-xl font-medium mb-2 ${
+                      isDarkMode ? "text-white" : "text-gray-900"
+                    }`}
+                  >
+                    {searchTerm ? "No videos found" : "No watch history yet"}
+                  </h2>
+                  <p
+                    className={`${
+                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
+                    {searchTerm
+                      ? "Try adjusting your search terms"
+                      : "Videos you watch will appear here"}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Today */}
+                  {today.length > 0 && (
+                    <div>
+                      <h2
+                        className={`text-lg font-medium mb-4 ${
+                          isDarkMode ? "text-white" : "text-gray-900"
+                        }`}
+                      >
+                        Today
+                      </h2>
+                      <div className="space-y-2">
+                        {today.map((video) => (
+                          <VideoCard key={video._id} video={video} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Yesterday */}
+                  {yesterday.length > 0 && (
+                    <div>
+                      <h2
+                        className={`text-lg font-medium mb-4 ${
+                          isDarkMode ? "text-white" : "text-gray-900"
+                        }`}
+                      >
+                        Yesterday
+                      </h2>
+                      <div className="space-y-2">
+                        {yesterday.map((video) => (
+                          <VideoCard key={video._id} video={video} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Older */}
+                  {older.length > 0 && (
+                    <div>
+                      <h2
+                        className={`text-lg font-medium mb-4 ${
+                          isDarkMode ? "text-white" : "text-gray-900"
+                        }`}
+                      >
+                        Older
+                      </h2>
+                      <div className="space-y-2">
+                        {older.map((video) => (
+                          <VideoCard key={video._id} video={video} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Content */}
-        {filteredHistory.length === 0 ? (
-          <div className="text-center py-20">
+        {/* Right Section - 45% */}
+        <div
+          className={`w-full lg:w-[35%] lg:fixed lg:right-0 lg:top-30 lg:h-screen  lg:border-l ${
+            isDarkMode
+              ? "border-gray-700 bg-gray-900"
+              : "border-gray-200 bg-white"
+          } lg:overflow-hidden`}
+        >
+          <div className="p-4 lg:p-6 h-full flex flex-col">
+            {/* Search */}
             <div
-              className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ${
-                isDarkMode ? "bg-gray-800/50" : "bg-gray-100"
+              className={`relative mb-6 pb-4 border-b ${
+                isDarkMode ? "border-gray-700" : "border-gray-200"
               }`}
             >
-              <Clock
-                className={`${isDarkMode ? "text-gray-500" : "text-gray-400"}`}
-                size={40}
+              <Search
+                className={`absolute left-3 top-5 transform -translate-y-1/2 ${
+                  isDarkMode ? "text-gray-400" : "text-gray-500"
+                }`}
+                size={18}
+              />
+              <input
+                type="text"
+                placeholder="Search watch history"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`w-full pl-10 pr-4 py-2 bg-transparent focus:outline-none text-sm ${
+                  isDarkMode
+                    ? "text-white placeholder-gray-400"
+                    : "text-gray-900 placeholder-gray-500"
+                }`}
               />
             </div>
-            <h2
-              className={`text-2xl font-bold mb-4 ${
-                isDarkMode ? "text-gray-300" : "text-gray-800"
-              }`}
-            >
-              {searchTerm ? "No videos found" : "No watch history yet"}
-            </h2>
-            <p
-              className={`max-w-md mx-auto leading-relaxed ${
-                isDarkMode ? "text-gray-500" : "text-gray-600"
-              }`}
-            >
-              {searchTerm
-                ? "Try adjusting your search terms or filters to find what you're looking for"
-                : "Videos you watch will appear here. Start exploring to build your history!"}
-            </p>
-          </div>
-        ) : (
-          <div
-            className={`${
-              viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2  lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4   gap-4 "
-                : "space-y-4"
-            }`}
-          >
-            {filteredHistory.map((video) => (
-              <div
-                key={video._id}
-                className={`group relative  backdrop-blur-sm border transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl ${
+
+            {/* Clear History */}
+            <div className="flex-shrink-0">
+              <button
+                onClick={handleClearHistory}
+                disabled={actionLoading || watchHistory.length === 0}
+                className={`flex items-center gap-3 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   isDarkMode
-                    ? "bg-gray-800/30 hover:bg-gray-800/50 border-gray-700/30 hover:border-gray-600/50"
-                    : "bg-white/30 hover:bg-white/50 border-gray-200/30 hover:border-gray-300/50"
-                } ${
-                  viewMode === "grid"
-                    ? "sm:rounded-none lg:rounded-2xl  overflow-hidden "
-                    : " sm:rounded-none lg:rounded-xl p-4 flex gap-4"
+                    ? "text-blue-400 hover:text-blue-300"
+                    : "text-blue-600 hover:text-blue-700"
                 }`}
               >
-                {/* Remove button */}
-                <button
-                  onClick={(e) => handleRemoveFromHistory(video._id, e)}
-                  disabled={actionLoading}
-                  className="absolute top-3 right-3 bg-red-500/80 hover:bg-red-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 shadow-lg"
-                  title="Remove from history"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <Trash2 size={16} />
+                {actionLoading ? "Clearing..." : "Clear all watch history"}
+              </button>
+            </div>
 
-                {/* Thumbnail */}
-                <div
-                  className={`relative cursor-pointer ${
-                    viewMode === "grid" ? "" : "flex-shrink-0 w-48 h-28"
-                  }`}
-                  onClick={() => handleVideoClick(video._id)}
-                >
-                  <img
-                    src={video.thumbnail?.url}
-                    alt={video.title}
-                    className={`object-cover bg-gray-700 transition-transform duration-300 group-hover:scale-105 ${
-                      viewMode === "grid"
-                        ? "w-full h-48"
-                        : "w-full sm:h-30 lg:h-full rounded-lg"
-                    }`}
-                  />
-
-                  {/* Play overlay */}
-                  <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform scale-75 group-hover:scale-100">
-                      <div className="bg-white/10 backdrop-blur-sm rounded-full p-4 border border-white/20">
-                        <Play className="text-white fill-current" size={24} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md font-medium">
-                    {formatDuration(video.duration)}
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div
-                  className={`cursor-pointer flex-1 ${
-                    viewMode === "grid" ? "p-5" : ""
-                  }`}
-                  onClick={() => handleVideoClick(video._id)}
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <img
-                      src={video.owner?.avatar}
-                      alt={video.owner?.fullName}
-                      className={`w-8 h-8 rounded-full border ${
-                        isDarkMode ? "border-gray-600" : "border-gray-300"
-                      }`}
-                    />
-                    <span
-                      className={`text-sm font-medium transition-colors ${
-                        isDarkMode
-                          ? "text-gray-300 hover:text-blue-400"
-                          : "text-gray-700 hover:text-blue-600"
-                      }`}
-                    >
-                      {video.owner?.fullName}
-                    </span>
-                  </div>
-
-                  <h3
-                    className={`font-semibold mb-3 line-clamp-2 transition-colors leading-tight ${
-                      isDarkMode
-                        ? "text-gray-100 hover:text-blue-400"
-                        : "text-gray-800 hover:text-blue-600"
-                    }`}
-                  >
-                    {video.title}
-                  </h3>
-
-                  {viewMode === "grid" && (
-                    <p
-                      className={`text-sm line-clamp-2 mb-4 leading-relaxed ${
-                        isDarkMode ? "text-gray-400" : "text-gray-600"
-                      }`}
-                    >
-                      {video.description}
-                    </p>
-                  )}
-
-                  <div
-                    className={`flex items-center gap-4 text-xs ${
-                      isDarkMode ? "text-gray-500" : "text-gray-500"
-                    }`}
-                  >
-                    <div className="flex items-center gap-1">
-                      <Eye size={12} />
-                      <span className="font-medium">
-                        {formatViews(video.views)} views
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar size={12} />
-                      <span>{formatDate(video.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
+            {/* Additional content area for future features */}
+            <div className="flex-1 mt-6 hidden lg:block">
+              <div
+                className={`text-center py-8 ${
+                  isDarkMode ? "text-gray-500" : "text-gray-400"
+                }`}
+              >
+                <p className="text-sm">
+                  Search your watch history or clear it completely
+                </p>
               </div>
-            ))}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

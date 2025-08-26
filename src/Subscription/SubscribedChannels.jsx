@@ -147,11 +147,93 @@ const SubscribedChannels = () => {
   }, [openShareMenu]);
 
   const LoadingSpinner = () => (
-    <div className="flex justify-center items-center p-12">
-      <div className="relative">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-blue-600"></div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-6 h-6 bg-blue-600 rounded-full opacity-20"></div>
+    <div
+      className={`min-h-screen ${
+        isDarkMode
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
+          : "bg-gradient-to-br from-gray-50 via-white to-gray-100"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Skeleton */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div
+                className={`w-10 h-10 rounded-lg animate-pulse ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                }`}
+              ></div>
+              <div
+                className={`w-48 h-8 rounded-lg animate-pulse ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                }`}
+              ></div>
+            </div>
+            <div
+              className={`w-32 h-10 rounded-lg animate-pulse ${
+                isDarkMode ? "bg-gray-700" : "bg-gray-200"
+              }`}
+            ></div>
+          </div>
+
+          {/* Search Bar Skeleton */}
+          <div className="flex flex-col lg:flex-row gap-4 mb-6">
+            <div
+              className={`flex-1 h-12 rounded-xl animate-pulse ${
+                isDarkMode ? "bg-gray-700" : "bg-gray-200"
+              }`}
+            ></div>
+            <div
+              className={`w-40 h-12 rounded-xl animate-pulse ${
+                isDarkMode ? "bg-gray-700" : "bg-gray-200"
+              }`}
+            ></div>
+          </div>
+        </div>
+
+        {/* Grid Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(12)].map((_, index) => (
+            <div
+              key={index}
+              className={`backdrop-blur-sm rounded-2xl overflow-hidden border ${
+                isDarkMode
+                  ? "bg-gray-800/50 border-gray-700/50"
+                  : "bg-white/50 border-gray-200/50"
+              }`}
+            >
+              <div
+                className={`h-48 animate-pulse ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                }`}
+              ></div>
+              <div className="p-5 space-y-3">
+                <div
+                  className={`h-4 rounded animate-pulse ${
+                    isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                  }`}
+                ></div>
+                <div
+                  className={`h-4 rounded w-3/4 animate-pulse ${
+                    isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                  }`}
+                ></div>
+                <div className="flex justify-between">
+                  <div
+                    className={`h-3 rounded w-16 animate-pulse ${
+                      isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                    }`}
+                  ></div>
+                  <div
+                    className={`h-3 rounded w-20 animate-pulse ${
+                      isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                    }`}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -14,7 +14,7 @@ import {
   LogOut,
   Video,
 } from "lucide-react";
-import NotificationModal from "./NotificationModal"; // Import the notification modal
+import NotificationModal from "./NotificationModal";
 
 const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
   //safety check
@@ -39,7 +39,7 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false); // Add notification modal state
-
+  const [notificationCount, setNotificationCount] = useState(0);
   // Handle search input change - only update input, don't execute search
   const handleSearchChange = (e) => {
     const query = e.target.value;
@@ -55,14 +55,13 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
     }
 
     try {
-      // Execute video search (local filtering)
       executeSearch(searchQuery, "videos");
       if (location.pathname !== "/") {
         navigate("/");
       }
     } catch (error) {
       console.error("Search failed:", error);
-      // Still execute search to show error state
+
       executeSearch(searchQuery, "videos");
     }
 
@@ -125,14 +124,14 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
       >
         <div className="max-w-7xl mx-auto ">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
+            <div className="flex items-center lg:-mx-7">
               <button
                 onClick={onSidebarToggle}
                 className={`mr-1 ${
                   isDarkMode
                     ? "text-gray-300 hover:text-white hover:bg-gray-700 "
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                } p-2 rounded-md transition-colors`}
+                } p-2 rounded-md cursor-pointer transition-colors`}
               >
                 <Menu className="h-6 w-6" />
               </button>
@@ -141,7 +140,7 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
               <div className="flex-shrink-0">
                 <button
                   onClick={handleLogoClick}
-                  className="flex items-center hover:opacity-80 transition-opacity"
+                  className="flex items-center hover:opacity-80 cursor-pointer transition-opacity"
                 >
                   <span className="text-red-600 text-2xl font-bold">Vid</span>
                   <span
@@ -255,14 +254,12 @@ const Navbar = ({ onSidebarToggle, isSidebarOpen }) => {
                     className={`${
                       isDarkMode
                         ? "text-gray-300 hover:text-white hover:bg-gray-700"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                    } p-2 rounded-full animate-pulse transition-colors relative`}
+                        : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                    } p-2 rounded-full  relative`}
                   >
-                    <Bell className="h-5 w-5" />
+                    <Bell className="h-5 w-5 " />
                     {/* Optional: Add notification badge */}
-                    {/* <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                      3
-                    </span> */}
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-2 w-2 flex items-center justify-center"></span>
                   </button>
 
                   <div className="relative user-menu-container">

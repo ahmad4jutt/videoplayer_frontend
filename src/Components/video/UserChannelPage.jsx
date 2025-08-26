@@ -3,20 +3,13 @@ import {
   Play,
   Calendar,
   Eye,
-  Clock,
-  Grid,
-  List,
-  ChevronLeft,
-  ChevronRight,
   Users,
   Settings,
   Bell,
   Share2,
-  MoreHorizontal,
   Video,
   Zap,
   Bookmark,
-  FileText,
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import {
@@ -161,10 +154,6 @@ const UserChannelPage = () => {
       month: "short",
       day: "numeric",
     });
-  };
-
-  const handlePageChange = (newPage) => {
-    setCurrentPage(newPage);
   };
 
   // Filter videos by duration (shorts vs videos)
@@ -588,9 +577,9 @@ const UserChannelPage = () => {
                   <img
                     src={channelInfo.avatar}
                     alt={channelInfo.fullName}
-                    className="w-28 h-28 lg:w-36 lg:h-36 rounded-full border-4 border-white shadow-xl"
+                    className="w-28 h-28 lg:w-36 lg:h-36 object-cover rounded-full border-4 border-white shadow-xl"
                   />
-                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 border-4 border-white rounded-full"></div>
+                  <div className="absolute -bottom-1 right-1  w-6 h-6  bg-green-500 border-4 border-transparent rounded-full"></div>
                 </div>
 
                 <div className="flex-1">

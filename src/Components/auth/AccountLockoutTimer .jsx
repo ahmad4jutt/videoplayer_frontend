@@ -3,7 +3,7 @@ import { Clock, RefreshCw } from "lucide-react";
 import { checkLockoutStatus } from "../../services/api"; // Adjust the import path as needed
 
 const AccountLockoutTimer = ({
-  lockoutExpiry,
+  lockoutExpiry, // This might be outdated
   onLockoutExpired,
   onRetryLogin,
   userEmail,
@@ -12,13 +12,49 @@ const AccountLockoutTimer = ({
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isExpired, setIsExpired] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [actualLockoutExpiry, setActualLockoutExpiry] = useState(lockoutExpiry);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Fetch current lockout status on component mount
+  useEffect(() => {
+    const fetchCurrentStatus = async () => {
+      if (!userEmail && !userName) return;
+
+      try {
+        const requestData = {};
+        if (userEmail) requestData.email = userEmail;
+        if (userName) requestData.userName = userName;
+
+        const response = await checkLockoutStatus(requestData);
+
+        if (response.data.success && response.data.isLocked) {
+          // Use the server's lockout expiry time (which uses current settings)
+          setActualLockoutExpiry(response.data.data.lockoutExpiry);
+        } else if (response.data.success && !response.data.isLocked) {
+          // Account is not locked
+          setIsExpired(true);
+          if (onLockoutExpired) {
+            onLockoutExpired();
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching lockout status:", error);
+        // Fallback to the provided lockoutExpiry
+        setActualLockoutExpiry(lockoutExpiry);
+      } finally {
+        setIsInitialized(true);
+      }
+    };
+
+    fetchCurrentStatus();
+  }, [userEmail, userName, lockoutExpiry, onLockoutExpired]);
 
   useEffect(() => {
-    if (!lockoutExpiry) return;
+    if (!actualLockoutExpiry || !isInitialized) return;
 
     const updateTimer = () => {
       const now = new Date().getTime();
-      const expiry = new Date(lockoutExpiry).getTime();
+      const expiry = new Date(actualLockoutExpiry).getTime();
       const remaining = expiry - now;
 
       if (remaining <= 0) {
@@ -40,7 +76,7 @@ const AccountLockoutTimer = ({
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [lockoutExpiry, onLockoutExpired]);
+  }, [actualLockoutExpiry, onLockoutExpired, isInitialized]);
 
   const formatTime = (milliseconds) => {
     if (milliseconds <= 0) return "00:00";
@@ -74,6 +110,7 @@ const AccountLockoutTimer = ({
         // Still locked, update the expiry time if provided
         if (response.data.data?.lockoutExpiry) {
           // Update lockout expiry if backend provides new time
+          setActualLockoutExpiry(response.data.data.lockoutExpiry);
           setTimeRemaining(
             new Date(response.data.data.lockoutExpiry).getTime() -
               new Date().getTime()
@@ -91,6 +128,20 @@ const AccountLockoutTimer = ({
     }
   };
 
+  // Show loading state while initializing
+  if (!isInitialized) {
+    return (
+      <div className="mt-4">
+        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-400 border-t-transparent mr-2"></div>
+            <span className="text-gray-600">Checking account status...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-4">
       {!isExpired ? (
@@ -106,9 +157,16 @@ const AccountLockoutTimer = ({
             <div className="text-2xl font-mono font-bold text-orange-700 mb-2">
               {formatTime(timeRemaining)}
             </div>
-            <p className="text-orange-600 text-sm">
+            <p className="text-orange-600 text-sm mb-2">
               Time remaining until account unlock
             </p>
+            <button
+              onClick={handleRetryLogin}
+              disabled={isChecking}
+              className="text-orange-600 hover:text-orange-700 text-sm underline disabled:opacity-50"
+            >
+              {isChecking ? "Checking..." : "Check Status"}
+            </button>
           </div>
         </div>
       ) : (

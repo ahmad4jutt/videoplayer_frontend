@@ -725,6 +725,31 @@ const PlaylistById = () => {
                   </div>
                 ) : (
                   <div className="space-y-1">
+                    <div
+                      className={`sticky top-20 z-40 mb-2 ${
+                        isDarkMode ? "bg-gray-900" : "bg-gray-50"
+                      } pb-4`}
+                    >
+                      <div
+                        className={`flex space-x-1 p-1 rounded-lg ${
+                          isDarkMode ? "bg-gray-800" : "bg-gray-200"
+                        }`}
+                      >
+                        <button
+                          className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-all duration-200 `}
+                        ></button>
+                        <button
+                          className={`flex-1 py-3 px-4 rounded-md text-sm font-medium font-sans transition-all duration-200 ${
+                            isDarkMode ? "bg-transparent " : " text-gray-900 "
+                          }`}
+                        >
+                          Playlist Videos
+                        </button>
+                        <button
+                          className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-all duration-200 `}
+                        ></button>
+                      </div>
+                    </div>
                     {playlist.videos.map((video, index) => (
                       <div
                         key={video._id}

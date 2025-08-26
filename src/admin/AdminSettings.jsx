@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
+import CustomDateTimePicker from "../utils/CustomDateTimePicker";
 import {
   Settings,
   Shield,
@@ -789,7 +790,7 @@ const AdminSettings = () => {
         />
       </div>
 
-      <div>
+      <div className="">
         <label
           className={`block text-sm font-medium mb-2 ${
             isDarkMode ? "text-gray-300" : "text-gray-700"
@@ -797,27 +798,15 @@ const AdminSettings = () => {
         >
           Scheduled Maintenance
         </label>
-        <input
-          type="datetime-local"
-          value={
-            settings.maintenance?.scheduledMaintenance
-              ? new Date(settings.maintenance.scheduledMaintenance)
-                  .toISOString()
-                  .slice(0, 16)
-              : ""
+
+        <CustomDateTimePicker
+          className
+          value={settings.maintenance?.scheduledMaintenance}
+          onChange={(value) =>
+            handleSettingChange("maintenance", "scheduledMaintenance", value)
           }
-          onChange={(e) =>
-            handleSettingChange(
-              "maintenance",
-              "scheduledMaintenance",
-              e.target.value ? new Date(e.target.value).toISOString() : null
-            )
-          }
-          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-            isDarkMode
-              ? "bg-gray-700 border-gray-600 text-white"
-              : "bg-white border-gray-300 text-gray-900"
-          }`}
+          isDarkMode={isDarkMode}
+          placeholder="Select maintenance date and time"
         />
       </div>
     </div>

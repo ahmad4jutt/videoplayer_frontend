@@ -307,30 +307,96 @@ const ChannelVideoPage = () => {
     return (
       <div
         className={`min-h-screen ${
-          isDarkMode ? "bg-gray-900" : "bg-gray-100"
-        } flex items-center justify-center px-4`}
+          isDarkMode
+            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
+            : "bg-gradient-to-br from-gray-50 via-white to-gray-100"
+        }`}
       >
-        <div className="text-center">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4 sm:mb-6"></div>
-          <h3
-            className={`text-lg sm:text-xl font-semibold ${
-              isDarkMode ? "text-white" : "text-gray-900"
-            } mb-2`}
-          >
-            Loading your content
-          </h3>
-          <p
-            className={`${
-              isDarkMode ? "text-gray-400" : "text-gray-600"
-            } text-sm sm:text-base`}
-          >
-            Please wait...
-          </p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header Skeleton */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div
+                  className={`w-10 h-10 rounded-lg animate-pulse ${
+                    isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                  }`}
+                ></div>
+                <div
+                  className={`w-48 h-8 rounded-lg animate-pulse ${
+                    isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                  }`}
+                ></div>
+              </div>
+              <div
+                className={`w-32 h-10 rounded-lg animate-pulse ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                }`}
+              ></div>
+            </div>
+
+            {/* Search Bar Skeleton */}
+            <div className="flex flex-col lg:flex-row gap-4 mb-6">
+              <div
+                className={`flex-1 h-12 rounded-xl animate-pulse ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                }`}
+              ></div>
+              <div
+                className={`w-40 h-12 rounded-xl animate-pulse ${
+                  isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                }`}
+              ></div>
+            </div>
+          </div>
+
+          {/* Grid Skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(12)].map((_, index) => (
+              <div
+                key={index}
+                className={`backdrop-blur-sm rounded-2xl overflow-hidden border ${
+                  isDarkMode
+                    ? "bg-gray-800/50 border-gray-700/50"
+                    : "bg-white/50 border-gray-200/50"
+                }`}
+              >
+                <div
+                  className={`h-48 animate-pulse ${
+                    isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                  }`}
+                ></div>
+                <div className="p-5 space-y-3">
+                  <div
+                    className={`h-4 rounded animate-pulse ${
+                      isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                    }`}
+                  ></div>
+                  <div
+                    className={`h-4 rounded w-3/4 animate-pulse ${
+                      isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                    }`}
+                  ></div>
+                  <div className="flex justify-between">
+                    <div
+                      className={`h-3 rounded w-16 animate-pulse ${
+                        isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                      }`}
+                    ></div>
+                    <div
+                      className={`h-3 rounded w-20 animate-pulse ${
+                        isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                      }`}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
-
   if (error) {
     return (
       <div
@@ -586,21 +652,13 @@ const ChannelVideoPage = () => {
                     isDarkMode ? "text-white" : "text-gray-900"
                   } mb-2 flex items-center justify-center sm:justify-start`}
                 >
-                  Latest Videos
+                  your Videos
                   <ChevronRight
                     className={`w-6 h-6 sm:w-8 sm:h-8 ${
                       isDarkMode ? "text-gray-400" : "text-gray-500"
                     } ml-2`}
                   />
                 </h2>
-                <p
-                  className={`${
-                    isDarkMode ? "text-gray-400" : "text-gray-600"
-                  } text-center sm:text-left text-sm sm:text-base`}
-                >
-                  {videos.length} {videos.length === 1 ? "video" : "videos"}{" "}
-                  available
-                </p>
               </div>
             </div>
           </div>

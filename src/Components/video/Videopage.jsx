@@ -236,20 +236,29 @@ const Videopage = () => {
     try {
       setLoading(true);
 
-      // Create update data with tags as JSON string
+      // Debug: Log what we have in editForm
+      console.log("Edit form before sending:", editForm);
+      console.log("Edit form tags:", editForm.tags);
+
+      // Create update data - ensure tags are properly formatted as JSON string to match backend expectation
       const updateData = {
-        title: editForm.title,
-        description: editForm.description,
+        title: editForm.title.trim(),
+        description: editForm.description.trim(),
         category: editForm.category,
-        tags: JSON.stringify(editForm.tags),
+        tags: JSON.stringify(Array.isArray(editForm.tags) ? editForm.tags : []), // Send as JSON string like in create
       };
 
-      await updateVideo(token, videoId, updateData);
+      console.log("Sending update data:", updateData); // Debug log to check what's being sent
+
+      const response = await updateVideo(token, videoId, updateData);
+      console.log("Update response:", response); // Debug the response
+
       await fetchVideos();
       setEditingVideo(null);
       setEditForm({ title: "", description: "", category: "", tags: [] });
       setEditTagInput("");
     } catch (error) {
+      console.error("Update error:", error); // Debug the error
       setError(
         `Failed to update video: ${
           error.response?.data?.message || error.message
@@ -296,22 +305,24 @@ const Videopage = () => {
 
   return (
     <div
-      className={`min-h-screen p-6 ${
+      className={`min-h-screen p-3 sm:p-4 md:p-6 ${
         isDarkMode
           ? "bg-gradient-to-br from-gray-900 to-gray-800"
           : "bg-gradient-to-br from-gray-50 to-blue-50"
       }`}
     >
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="text-center">
+        <div className="text-center px-2">
           <h1
-            className={`text-4xl font-bold bg-gradient-to-r from-gray-500 to-gray-700 bg-clip-text text-transparent`}
+            className={`text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-500 to-gray-700 bg-clip-text text-transparent`}
           >
             Video Management
           </h1>
           <p
-            className={`mt-2 ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}
+            className={`mt-2 text-sm sm:text-base ${
+              isDarkMode ? "text-gray-300" : "text-gray-600"
+            }`}
           >
             Upload and manage your video content with smart categorization
           </p>
@@ -320,19 +331,19 @@ const Videopage = () => {
         {/* Error Display */}
         {error && (
           <div
-            className={`border-l-4 border-red-500 p-4 rounded-lg ${
+            className={`border-l-4 border-red-500 p-3 sm:p-4 rounded-lg mx-2 sm:mx-0 ${
               isDarkMode
                 ? "bg-red-900/20 text-red-300"
                 : "bg-red-50 text-red-700"
             }`}
           >
             <div className="flex">
-              <div className="ml-3">
-                <p>{error}</p>
+              <div className="ml-3 flex-1">
+                <p className="text-sm sm:text-base">{error}</p>
               </div>
               <button
                 onClick={() => setError("")}
-                className={`ml-auto hover:opacity-70 ${
+                className={`ml-auto hover:opacity-70 text-lg sm:text-xl ${
                   isDarkMode ? "text-red-400" : "text-red-500"
                 }`}
               >
@@ -344,16 +355,16 @@ const Videopage = () => {
 
         {/* Upload Form */}
         <div
-          className={`rounded-2xl shadow-xl p-8 border ${
+          className={`rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 border mx-2 sm:mx-0 ${
             isDarkMode
               ? "bg-gray-800 border-gray-700"
               : "bg-white border-gray-100"
           }`}
         >
-          <div className="flex items-center mb-6">
-            <div className="w-12 h-12 bg-gradient-to-r from-gray-500 to-gray-700 rounded-xl flex items-center justify-center">
+          <div className="flex flex-col sm:flex-row sm:items-center mb-4 sm:mb-6">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-gray-500 to-gray-700 rounded-xl flex items-center justify-center mx-auto sm:mx-0 mb-3 sm:mb-0">
               <svg
-                className="w-6 h-6 text-white"
+                className="w-5 h-5 sm:w-6 sm:h-6 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -367,7 +378,7 @@ const Videopage = () => {
               </svg>
             </div>
             <h2
-              className={`text-2xl font-bold ml-4 ${
+              className={`text-lg sm:text-xl md:text-2xl font-bold sm:ml-4 text-center sm:text-left ${
                 isDarkMode ? "text-white" : "text-gray-800"
               }`}
             >
@@ -375,8 +386,8 @@ const Videopage = () => {
             </h2>
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
+          <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label
                   className={`block text-sm font-semibold mb-2 ${
@@ -390,10 +401,10 @@ const Videopage = () => {
                   placeholder="Enter video title..."
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
                     isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-900 "
+                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
                   }`}
                   required
                 />
@@ -412,7 +423,7 @@ const Videopage = () => {
                   onChange={(e) =>
                     setForm({ ...form, category: e.target.value })
                   }
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
                     isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
@@ -429,7 +440,7 @@ const Videopage = () => {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label
                   className={`block text-sm font-semibold mb-2 ${
@@ -443,7 +454,7 @@ const Videopage = () => {
                   type="file"
                   accept="video/*"
                   onChange={onFileChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-gray-700 hover:file:bg-gray-100 ${
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 file:mr-2 sm:file:mr-4 file:py-1 sm:file:py-2 file:px-2 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-purple-50 file:text-gray-700 hover:file:bg-gray-100 text-xs sm:text-sm ${
                     isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white"
                       : "bg-white border-gray-300 text-gray-900"
@@ -465,7 +476,7 @@ const Videopage = () => {
                   type="file"
                   accept="image/*"
                   onChange={onFileChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:gray-purple-700 hover:file:bg-gray-100 ${
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 file:mr-2 sm:file:mr-4 file:py-1 sm:file:py-2 file:px-2 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-purple-50 file:text-gray-700 hover:file:bg-gray-100 text-xs sm:text-sm ${
                     isDarkMode
                       ? "bg-gray-700 border-gray-600 text-gray-500"
                       : "bg-white border-gray-300 text-gray-700"
@@ -489,10 +500,10 @@ const Videopage = () => {
                   setForm({ ...form, description: e.target.value })
                 }
                 rows="4"
-                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none ${
+                className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none text-sm sm:text-base ${
                   isDarkMode
                     ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                    : "bg-white border-gray-300 text-gray-900"
+                    : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
                 }`}
               />
             </div>
@@ -513,15 +524,15 @@ const Videopage = () => {
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={handleAddTag}
-                  className={`flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                  className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
                     isDarkMode
                       ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                      : "bg-white border-gray-300 text-gray-900"
+                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
                   }`}
                 />
               </div>
               <p
-                className={`text-sm mt-1 ${
+                className={`text-xs sm:text-sm mt-1 ${
                   isDarkMode ? "text-gray-400" : "text-gray-500"
                 }`}
               >
@@ -530,11 +541,11 @@ const Videopage = () => {
               </p>
 
               {form.tags.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-1 sm:gap-2">
                   {form.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${
+                      className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
                         isDarkMode
                           ? "bg-gray-900/50 text-gray-300"
                           : "bg-gray-100 text-gray-800"
@@ -544,7 +555,7 @@ const Videopage = () => {
                       <button
                         type="button"
                         onClick={() => handleRemoveTag(tag)}
-                        className={`ml-2 hover:opacity-70 ${
+                        className={`ml-1 sm:ml-2 hover:opacity-70 ${
                           isDarkMode ? "text-gray-400" : "text-gray-600"
                         }`}
                       >
@@ -559,11 +570,11 @@ const Videopage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-gray-500 to-gray-700 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-gray-700 hover:to-gray-500 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-gradient-to-r from-gray-500 to-gray-700 text-white py-3 sm:py-4 px-4 sm:px-6 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base md:text-lg hover:from-gray-700 hover:to-gray-500 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {loading ? (
                 <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white mr-2"></div>
                   Uploading...
                 </div>
               ) : (
@@ -575,53 +586,55 @@ const Videopage = () => {
 
         {/* Videos List */}
         <div
-          className={`rounded-2xl shadow-xl p-8 border ${
+          className={`rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 md:p-8 border mx-2 sm:mx-0 ${
             isDarkMode
               ? "bg-gray-800 border-gray-700"
               : "bg-white border-gray-100"
           }`}
         >
-          <div className="flex items-center mb-6">
-            <div className="w-12 h-12 bg-gradient-to-r from-gray-500 to-gray-700 rounded-xl flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center mb-3 sm:mb-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-gray-500 to-gray-700 rounded-xl flex items-center justify-center mx-auto sm:mx-0 mb-3 sm:mb-0">
+                <svg
+                  className="w-5 h-5 sm:w-6 sm:h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  />
+                </svg>
+              </div>
+              <h2
+                className={`text-lg sm:text-xl md:text-2xl font-bold sm:ml-4 text-center sm:text-left ${
+                  isDarkMode ? "text-white" : "text-gray-800"
+                }`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                />
-              </svg>
+                Your Videos
+              </h2>
             </div>
-            <h2
-              className={`text-2xl font-bold ml-4 ${
-                isDarkMode ? "text-white" : "text-gray-800"
-              }`}
-            >
-              Your Videos
-            </h2>
-            <div className="ml-auto">
+            <div className="text-center sm:text-right">
               <span
-                className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${
                   isDarkMode
                     ? "bg-gray-900/50 text-gray-300"
                     : "bg-gray-100 text-gray-800"
                 }`}
               >
-                {videos.length} videos
+                {videos.length} video{videos.length !== 1 ? "s" : ""}
               </span>
             </div>
           </div>
 
           {loading && !videos.length ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+            <div className="flex flex-col items-center justify-center py-8 sm:py-12">
+              <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-gray-600"></div>
               <span
-                className={`ml-3 ${
+                className={`ml-0 mt-3 text-sm sm:text-base ${
                   isDarkMode ? "text-gray-300" : "text-gray-600"
                 }`}
               >
@@ -629,14 +642,14 @@ const Videopage = () => {
               </span>
             </div>
           ) : videos.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-8 sm:py-12">
               <div
-                className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                className={`w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${
                   isDarkMode ? "bg-gray-700" : "bg-gray-100"
                 }`}
               >
                 <svg
-                  className={`w-12 h-12 ${
+                  className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 ${
                     isDarkMode ? "text-gray-500" : "text-gray-400"
                   }`}
                   fill="none"
@@ -652,18 +665,22 @@ const Videopage = () => {
                 </svg>
               </div>
               <h3
-                className={`text-xl font-semibold mb-2 ${
+                className={`text-lg sm:text-xl font-semibold mb-2 ${
                   isDarkMode ? "text-gray-300" : "text-gray-600"
                 }`}
               >
                 No videos yet
               </h3>
-              <p className={isDarkMode ? "text-gray-400" : "text-gray-500"}>
+              <p
+                className={`text-sm sm:text-base ${
+                  isDarkMode ? "text-gray-400" : "text-gray-500"
+                }`}
+              >
                 Upload your first video to get started!
               </p>
             </div>
           ) : (
-            <div className="grid gap-6">
+            <div className="grid gap-4 sm:gap-6">
               {videos.map((video, index) => {
                 // Use a more flexible approach to get video ID
                 const videoId = video._id || video.id || `video-${index}`;
@@ -682,21 +699,21 @@ const Videopage = () => {
                 return (
                   <div
                     key={videoId}
-                    className={`border rounded-xl p-6 hover:shadow-lg transition-all duration-200 ${
+                    className={`border rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-lg transition-all duration-200 ${
                       isDarkMode
                         ? "border-gray-600 bg-gradient-to-r from-gray-700 to-gray-800"
                         : "border-gray-200 bg-gradient-to-r from-gray-50 to-white"
                     }`}
                   >
                     {editingVideo === videoId ? (
-                      <div className="space-y-4">
+                      <div className="space-y-3 sm:space-y-4">
                         <input
                           type="text"
                           value={editForm.title}
                           onChange={(e) =>
                             setEditForm({ ...editForm, title: e.target.value })
                           }
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                          className={`w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base ${
                             isDarkMode
                               ? "bg-gray-700 border-gray-600 text-white"
                               : "bg-white border-gray-300 text-gray-900"
@@ -712,7 +729,7 @@ const Videopage = () => {
                               category: e.target.value,
                             })
                           }
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                          className={`w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base ${
                             isDarkMode
                               ? "bg-gray-700 border-gray-600 text-white"
                               : "bg-white border-gray-300 text-gray-900"
@@ -734,7 +751,7 @@ const Videopage = () => {
                               description: e.target.value,
                             })
                           }
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none ${
+                          className={`w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm sm:text-base ${
                             isDarkMode
                               ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
                               : "bg-white border-gray-300 text-gray-900"
@@ -750,14 +767,14 @@ const Videopage = () => {
                             value={editTagInput}
                             onChange={(e) => setEditTagInput(e.target.value)}
                             onKeyDown={handleEditAddTag}
-                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                            className={`w-full px-3 sm:px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm sm:text-base ${
                               isDarkMode
                                 ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
                                 : "bg-white border-gray-300 text-gray-900"
                             }`}
                           />
                           {editForm.tags.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-2">
+                            <div className="mt-2 flex flex-wrap gap-1 sm:gap-2">
                               {editForm.tags.map((tag, tagIndex) => (
                                 <span
                                   key={tagIndex}
@@ -785,11 +802,11 @@ const Videopage = () => {
                           )}
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                           <button
                             onClick={() => handleUpdateVideo(videoId)}
                             disabled={loading}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 text-sm sm:text-base font-medium"
                           >
                             Save
                           </button>
@@ -798,7 +815,7 @@ const Videopage = () => {
                               setEditingVideo(null);
                               setEditTagInput("");
                             }}
-                            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                            className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm sm:text-base font-medium"
                           >
                             Cancel
                           </button>
@@ -806,10 +823,10 @@ const Videopage = () => {
                       </div>
                     ) : (
                       <div>
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
+                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-4">
+                          <div className="flex-1 mb-4 lg:mb-0 lg:pr-4">
                             <h3
-                              className={`text-xl font-bold mb-2 ${
+                              className={`text-lg sm:text-xl font-bold mb-2 break-words ${
                                 isDarkMode ? "text-white" : "text-gray-800"
                               }`}
                             >
@@ -817,16 +834,18 @@ const Videopage = () => {
                             </h3>
                             {videoDescription && (
                               <p
-                                className={`mb-3 ${
+                                className={`mb-3 text-sm sm:text-base break-words ${
                                   isDarkMode ? "text-gray-300" : "text-gray-600"
                                 }`}
                               >
                                 {videoDescription}
                               </p>
                             )}
-                            <div className="flex items-center gap-4 mb-3">
+
+                            {/* Status and Info Row */}
+                            <div className="flex flex-wrap items-center gap-2 mb-3">
                               <span
-                                className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${
                                   isPublished
                                     ? "bg-green-100 text-green-800"
                                     : "bg-yellow-100 text-yellow-800"
@@ -835,13 +854,13 @@ const Videopage = () => {
                                 {isPublished ? "Published" : "Draft"}
                               </span>
                               {videoCategory && (
-                                <span className="px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                                <span className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm bg-blue-100 text-blue-800">
                                   {videoCategory}
                                 </span>
                               )}
                               {createdDate && (
                                 <span
-                                  className={`text-sm ${
+                                  className={`text-xs sm:text-sm ${
                                     isDarkMode
                                       ? "text-gray-400"
                                       : "text-gray-500"
@@ -851,9 +870,11 @@ const Videopage = () => {
                                 </span>
                               )}
                             </div>
+
+                            {/* Tags */}
                             {videoTags.length > 0 && (
                               <div className="flex flex-wrap gap-1 mb-3">
-                                {videoTags.map((tag, tagIndex) => (
+                                {videoTags.slice(0, 5).map((tag, tagIndex) => (
                                   <span
                                     key={tagIndex}
                                     className={`inline-block px-2 py-1 rounded-full text-xs ${
@@ -865,18 +886,30 @@ const Videopage = () => {
                                     #{tag}
                                   </span>
                                 ))}
+                                {videoTags.length > 5 && (
+                                  <span
+                                    className={`inline-block px-2 py-1 rounded-full text-xs ${
+                                      isDarkMode
+                                        ? "bg-gray-700 text-gray-300"
+                                        : "bg-gray-100 text-gray-600"
+                                    }`}
+                                  >
+                                    +{videoTags.length - 5} more
+                                  </span>
+                                )}
                               </div>
                             )}
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-3">
+                        {/* Action Buttons */}
+                        <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
                           <button
                             onClick={() => handleEdit(video)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                            className="flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium"
                           >
                             <svg
-                              className="w-4 h-4"
+                              className="w-3 h-3 sm:w-4 sm:h-4"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -894,7 +927,7 @@ const Videopage = () => {
                           <button
                             onClick={() => handleTogglePublish(videoId)}
                             disabled={loading}
-                            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 ${
+                            className={`flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors disabled:opacity-50 text-xs sm:text-sm font-medium ${
                               isPublished
                                 ? "bg-orange-600 text-white hover:bg-orange-700"
                                 : "bg-green-600 text-white hover:bg-green-700"
@@ -903,7 +936,7 @@ const Videopage = () => {
                             {isPublished ? (
                               <>
                                 <svg
-                                  className="w-4 h-4"
+                                  className="w-3 h-3 sm:w-4 sm:h-4"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -915,12 +948,15 @@ const Videopage = () => {
                                     d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
                                   />
                                 </svg>
-                                Unpublish
+                                <span className="hidden sm:inline">
+                                  Unpublish
+                                </span>
+                                <span className="sm:hidden">Hide</span>
                               </>
                             ) : (
                               <>
                                 <svg
-                                  className="w-4 h-4"
+                                  className="w-3 h-3 sm:w-4 sm:h-4"
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -946,10 +982,10 @@ const Videopage = () => {
                           <button
                             onClick={() => handleDelete(videoId)}
                             disabled={loading}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                            className="flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 text-xs sm:text-sm font-medium"
                           >
                             <svg
-                              className="w-4 h-4"
+                              className="w-3 h-3 sm:w-4 sm:h-4"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"

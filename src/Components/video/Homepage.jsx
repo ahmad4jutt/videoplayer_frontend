@@ -122,7 +122,7 @@ const Homepage = () => {
 
         const response = await getAllVideos(token);
 
-        if (!isMounted) return; // Prevent state updates if component unmounted
+        if (!isMounted) return;
 
         const apiData = response.data.data;
         const videoData = apiData?.videos || apiData || [];
@@ -184,9 +184,6 @@ const Homepage = () => {
   const handleVideoClick = useCallback(
     async (videoId) => {
       // Don't allow video clicks during maintenance mode
-      if (maintenanceMode) {
-        return;
-      }
 
       if (!token) {
         console.warn("No token available for watch history");
@@ -299,7 +296,7 @@ const Homepage = () => {
           <div
             className={`absolute inset-0 ${
               isDarkMode ? "bg-yellow-600" : "bg-yellow-400"
-            } transform -skew-x-12 animate-pulse`}
+            } transform -skew-x-2 animate-pulse`}
           ></div>
         </div>
       </div>
@@ -736,26 +733,12 @@ const Homepage = () => {
             <div
               key={video._id || video.id || `video-${index}`}
               onClick={() => handleVideoClick(video._id || video.id)}
-              className={`transform transition-transform duration-200 ${
-                maintenanceMode
-                  ? "opacity-75 cursor-not-allowed hover:opacity-90"
-                  : "hover:scale-105 cursor-pointer"
-              }`}
+              className={`transform transition-transform duration-200 hover:scale-105 cursor-pointer
+              `}
             >
               <VideoCard video={video} />
             </div>
           ))}
-        </div>
-
-        {/* Footer */}
-        <div
-          className={`text-center mt-16 pt-8 border-t ${
-            isDarkMode ? "border-gray-700" : "border-gray-200"
-          }`}
-        >
-          <p className={`${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-            Enjoying the content? Share with your friends! 🎬
-          </p>
         </div>
       </div>
     </div>

@@ -117,35 +117,6 @@ const LikedVideo = () => {
     });
   };
 
-  const getTotalViews = () => {
-    if (!Array.isArray(likedVideos) || likedVideos.length === 0) {
-      return 0;
-    }
-
-    let totalViews = 0;
-    likedVideos.forEach((video) => {
-      if (video?.views) {
-        totalViews += video.views;
-      }
-    });
-
-    return totalViews;
-  };
-
-  const handleCopyLink = async () => {
-    try {
-      const likedVideosUrl = `${window.location.origin}/liked-videos`;
-      await navigator.clipboard.writeText(likedVideosUrl);
-      setShareSuccess(true);
-      setTimeout(() => {
-        setShareSuccess(false);
-        setShowShareModal(false);
-      }, 2000);
-    } catch (err) {
-      console.error("Failed to copy link:", err);
-    }
-  };
-
   const handleShareVideo = async (video) => {
     try {
       const videoUrl = `${window.location.origin}/video/${video._id}`;
@@ -203,7 +174,7 @@ const LikedVideo = () => {
 
   // Helper function to get fallback background for empty liked videos
   const getEmptyLikedVideosBackground = () => {
-    return "linear-gradient(135deg, #e91e63 0%, #ad1457 25%, #880e4f 50%, #c2185b 75%, #e91e63 100%)";
+    return "linear-gradient(135deg, #0f0c29 0%, #24243e 25%, #302b63 50%, #8b2635 75%, #c73e1d 100%)";
   };
 
   // Helper function to render description with show more/less functionality
@@ -667,7 +638,7 @@ const LikedVideo = () => {
               {/* Tab Navigation - Desktop - Sticky */}
               {hasVideos && (
                 <div
-                  className={`sticky top-20 z-40 mb-2 ${
+                  className={`sticky top-20 z-40  mb-2 ${
                     isDarkMode ? "bg-gray-900" : "bg-gray-50"
                   } pb-4`}
                 >

@@ -1,15 +1,16 @@
 import axios from "axios";
+import { API_BASED_URL } from "../utils/constants";
 //USER routes
 
-const VIDEO_BASE_URL = "http://localhost:8000/api/v1/videos/";
-const COMMENT_BASE_URL = "http://localhost:8000/api/v1/comments";
-const DASHBOARD_BASE_URL = "http://localhost:8000/api/v1/dashboard";
-const PLAYLIST_BASE_URL = "http://localhost:8000/api/v1/playlists";
-const LIKE_BASE_URL = "http://localhost:8000/api/v1/likes";
-const SUBSCRIPTION_BASE_URL = "http://localhost:8000/api/v1/subscriptions";
-const HEALTHCHECK_BASE_URL = "http://localhost:8000/api/v1/healthcheck";
-const USER_BASE_URL = "http://localhost:8000/api/v1/users";
-const ADMIN_BASE_URL = "http://localhost:8000/api/v1/users/admin";
+const VIDEO_BASE_URL = `${API_BASED_URL}/videos/`;
+const COMMENT_BASE_URL = `${API_BASED_URL}/comments`;
+const DASHBOARD_BASE_URL = `${API_BASED_URL}/dashboard`;
+const PLAYLIST_BASE_URL = `${API_BASED_URL}/playlists`;
+const LIKE_BASE_URL = `${API_BASED_URL}/likes`;
+const SUBSCRIPTION_BASE_URL = `${API_BASED_URL}/subscriptions`;
+const HEALTHCHECK_BASE_URL = `${API_BASED_URL}/healthcheck`;
+const USER_BASE_URL = `${API_BASED_URL}/users`;
+const ADMIN_BASE_URL = `${API_BASED_URL}/users/admin`;
 
 export const registerUser = (formData) =>
   axios.post(`${USER_BASE_URL}/register`, formData, {
@@ -419,7 +420,8 @@ export const updateVideo = (token, videoId, data) => {
   if (data.title) formData.append("title", data.title);
   if (data.description) formData.append("description", data.description);
   if (data.thumbnail) formData.append("thumbnail", data.thumbnail);
-
+  if (data.category) formData.append("category", data.category); // Added missing category
+  if (data.tags) formData.append("tags", data.tags); // Added missing tags
   return axios.patch(`${VIDEO_BASE_URL}/${videoId}`, formData, {
     headers: {
       "Content-Type": "multipart/form-data",
